@@ -56,8 +56,9 @@ source("functions.R")
 #data
 ```{r data, include=FALSE}
 #load t1 (clin and imaging), and brainPAD
-t1 <- read.csv("~/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/freesurfer/freesurfer_stats/t1w.clin.image.scan.201.csv", header = TRUE)
-brainage <- read.csv("~/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/freesurfer/freesurfer_stats/PyBrainAge_Output_suyi_20240709.csv", header = TRUE)
+t1 <- read.csv("~/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/seizure_prediction/seizure_prediction/t1w.clin.image.scan.201.csv", header = TRUE)
+
+brainage <- read.csv("~/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/seizure_prediction/seizure_prediction/PyBrainAge_Output_suyi_20240709.csv", header = TRUE)
 
 t1$X = NULL
 t1$sex[t1$sex == "nonbinary"] <- "male"
@@ -77,7 +78,7 @@ t1.dat <- t1.dat %>% dplyr::mutate(across(where(is.character), factor))
 #reference levels
 t1.dat$szrec1 <- relevel(t1.dat$szrec1, ref = "no") #predicting YES
 t1.dat$sz_type <- relevel(t1.dat$sz_type, ref = "unc") 
-t1.dat$mri <- relevel(t1.dat$mri, ref = "normal") #predict abnormal
+t1.dat$mri <- relevel(t1.dat$mri, ref = "normal")
 t1.dat$eeg <- relevel(t1.dat$eeg, ref = "normal")
 t1.dat$risk_factors___3 <- relevel(t1.dat$risk_factors___3, ref = "no")
 
@@ -132,20 +133,14 @@ learners <- list(lrn("classif.ranger",
 # define measure
 measure = msr("classif.auc")
 
-#tuning grid
-tuner = mlr3tuning::tnr("random_search", batch_size = 1)
+#hyperparameter search strategy
+tuner = mlr3tuning::tnr("random_search", batch_size = 1) #change depending on cores
 
 #store results
-
 train_sets <- list()
 test_sets <- list()
 
 results <- list()
-inner_performance <- list()
-outer_performance <- list()
-outer_predictions <- list()
-final_models <- list()
-best_model_params <- list()
 
 clin_rr_train <- list()
 clin_auc <- list()
@@ -159,7 +154,7 @@ inner_rsmp = rsmp("cv", folds = 10)
 #nested CV
 ```{r outer, include=FALSE, r echo=FALSE, results='hide'}
 
-#folds
+#custom make 10 outer folds
 set.seed(4)
 k <- 10 
 folds <- stratified_folds(task, k)
@@ -183,7 +178,7 @@ for (i in seq_len(k)) {
   train_df_list <- extract_featuregroup_list(train_data)
   test_df_list  <- extract_featuregroup_list(test_data)
   
-  #covariates for combat
+  #biological covariates for combat
   covars.train = model.matrix(~age+factor(sex)+factor(szrec1), data=train_data)
   
   #batch
@@ -240,7 +235,7 @@ for (i in seq_len(k)) {
         }
     } #end learners 
 
-  #inner loop: hyperparameter tuning for each graph learner
+  #---inner loop: hyperparameter tuning for each graph learner---#
   
   results[[i]] <- list()
   
@@ -254,21 +249,21 @@ for (i in seq_len(k)) {
     
     results[[i]][[j]] <- future_lapply(list(glrn), function(glrn){
   
-    #fallback
-    glrn$encapsulate <- c(train = "evaluate", predict = "evaluate")
-    glrn$fallback = lrn("classif.log_reg", predict_type = "prob")
+      #fallback
+      glrn$encapsulate <- c(train = "evaluate", predict = "evaluate")
+      glrn$fallback = lrn("classif.log_reg", predict_type = "prob")
     
-    #hyperparameter set
-    param_set <- create_param_sets(glrn$id)
+      #hyperparameter set
+      param_set <- create_param_sets(glrn$id)
     
-    #tuning instance
-    instance <- TuningInstanceSingleCrit$new(
+      #tuning instance
+      instance <- TuningInstanceSingleCrit$new(
       task = inner_train_task,
       learner = glrn,
       resampling = inner_rsmp,
       measure = measure,
       search_space = param_set,
-      terminator = trm("evals", n_evals = 5) #may increase
+      terminator = trm("evals", n_evals = 5) #increase for final run
     )
     
     tuner$optimize(instance)
@@ -276,20 +271,21 @@ for (i in seq_len(k)) {
     #instance$result_learner_param_vals
     #autoplot(instance)
     
-    #tuned learner
+    #assign tuned hyperparameters to learner
     glrn$param_set$values = instance$result_learner_param_vals
     
-    #inner evaluation
+    #inner loop evaluation
     rr_inner <- resample(inner_train_task, glrn,
                          inner_rsmp,
                          store_models = FALSE)
     
     inner_auc <- rr_inner$aggregate(measure)
     
-    # Perform outer loop train/test
-    glrn$train(outer_train_task)
-    outer_prediction <- glrn$predict(outer_test_task)
-    outer_auc = outer_prediction$score(measure)
+        #---Outer loop train/test evaluation---#
+    
+        glrn$train(outer_train_task)
+        outer_prediction <- glrn$predict(outer_test_task)
+        outer_auc <- outer_prediction$score(measure)
     
     #store results for each glrn
     list(
@@ -302,9 +298,9 @@ for (i in seq_len(k)) {
     )
   }, future.seed = TRUE)
   
-}
+} #end graph_learners 
 
-    #clinical model
+    #---clinical model---#
   
     #clin task train
     clin_task = outer_train_task$clone()
@@ -320,7 +316,7 @@ for (i in seq_len(k)) {
                                  "risk_factors___2","risk_factors___3",
                                  "risk_factors___9","sz_type","eeg"))
 
-    #learner
+    #clin learner
     lrn_clin = lrn("classif.log_reg", predict_type = "prob")
 
     clin_glm = as_learner(factor_pipeline %>>% lrn_clin)
@@ -337,13 +333,13 @@ for (i in seq_len(k)) {
                         store_models = FALSE)
     clin_rr_train[[i]] <- clin_rr$aggregate(measure)
 
-    #train on train
+    #train on clin training task
     clin_glm$train(clin_task)
     
     #predict on test
     pred_clin = clin_glm$predict(clin_test_task)
     
-    #auc
+    #clin auc
     clin_performance = pred_clin$score(msr("classif.auc"))
   
   #stores clinical model results
