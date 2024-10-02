@@ -52,8 +52,6 @@ library(future.apply)
 setwd("~/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/scripts/chap3")
 source("functions.R")
 
-#test
-
 ```
 #data
 ```{r data, include=FALSE}
