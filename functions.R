@@ -375,171 +375,154 @@ create_param_sets <- function(glrn_id) {
   
   #perm_randomforest  
   if (grepl("perm.classif.ranger", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.num.trees"),
-                   lower = 50, upper = 250),
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.mtry"),
-                   lower = 10, upper = 25),
-      ParamDbl$new(paste0(glrn_id, ".permutation.filter.frac"), lower = 0.05, upper = 0.3)
-    ))
+    param_set <- ps(
+      perm.classif.ranger.classif.ranger.num.trees = p_int(50,250),
+      
+      perm.classif.ranger.classif.ranger.mtry = p_int(10,25),
+      perm.classif.ranger.permutation.filter.frac = p_dbl(0.05,0.3)
+    )
     
     #pca_randomforest  
   } else if (grepl("pca.classif.ranger", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.num.trees"),
-                   lower = 50, upper = 250),
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.mtry"),
-                   lower = 10, upper = 25),
-      ParamDbl$new(paste0(glrn_id, ".variance.filter.frac"), lower = 0.5, upper = 0.9)
-    ))
+    param_set <- ps(
+      pca.classif.ranger.classif.ranger.num.trees = p_int(50,250),
+      pca.classif.ranger.classif.ranger.mtry = p_int(10,25),
+      pca.classif.ranger.variance.filter.frac = p_dbl(0.5,0.9)
+    )
     
     #auc_randomforest   
   } else if (grepl("auc_filter.classif.ranger", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.num.trees"),
-                   lower = 50, upper = 250),
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.mtry"),
-                   lower = 10, upper = 25),
-      ParamDbl$new(paste0(glrn_id, ".auc.filter.frac"), lower = 0.1, upper = 0.3)
-    ))
+    param_set <- ps(
+      auc_filter.classif.ranger.classif.ranger.num.trees = p_int(50,250),
+      auc_filter.classif.ranger.classif.ranger.mtry = p_int(10,25),
+      auc_filter.classif.ranger.auc.filter.frac = p_dbl(0.1,0.3)
+    )
     
     #nofilter_randomforest   
   } else if (grepl("no_filter.classif.ranger", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.num.trees"),
-                   lower = 50, upper = 250),
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.mtry"),
-                   lower = 10, upper = 25)
-    ))
+    param_set <- ps(no_filter.classif.ranger.classif.ranger.num.trees = p_int(50,250),
+                    no_filter.classif.ranger.classif.ranger.mtry = p_int(10,25)
+    )
     
     #perm_xgb    
   } else if (grepl("perm.classif.xgboost", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.nrounds"),
-                   lower = 50, upper = 250),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.eta"),
-                   lower = 1e-4, upper = 0.4),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.max_depth"),
-                   lower = 1, upper = 15),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.min_child_weight"),
-                   lower = 1, upper = 10),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.gamma"),
-                   lower = 1e-4, upper = 10),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.alpha"),
-                   lower = 1, upper = 1),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.subsample"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.colsample_bytree"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".permutation.filter.frac"), lower = 0.03, upper = 0.5)
-    ))
+    
+    param_set <- ps(
+      perm.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
+      perm.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
+      perm.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
+      perm.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
+      perm.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
+      perm.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
+      perm.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
+      perm.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5,0.8),
+      perm.classif.xgboost.permutation.filter.frac = p_dbl(0.05,0.3)
+    )
     
     #pca_xgb    
   } else if (grepl("pca.classif.xgboost", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.nrounds"),
-                   lower = 50, upper = 250),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.eta"),
-                   lower = 1e-4, upper = 0.4),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.max_depth"),
-                   lower = 1, upper = 15),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.min_child_weight"),
-                   lower = 1, upper = 10),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.gamma"),
-                   lower = 1e-4, upper = 10),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.alpha"),
-                   lower = 1, upper = 1),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.subsample"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.colsample_bytree"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".variance.filter.frac"), lower = 0.5, upper = 0.9)
-    ))
+    param_set <- ps(
+      pca.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
+      pca.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
+      pca.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
+      pca.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
+      pca.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
+      pca.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
+      pca.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
+      pca.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8),
+      pca.classif.xgboost.variance.filter.frac = p_dbl(0.5, 0.9)
+    )
     
     #auc_filter_xgb    
   } else if (grepl("auc_filter.classif.xgboost", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.nrounds"),
-                   lower = 50, upper = 250),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.eta"),
-                   lower = 1e-4, upper = 0.4),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.max_depth"),
-                   lower = 1, upper = 15),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.min_child_weight"),
-                   lower = 1, upper = 10),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.gamma"),
-                   lower = 1e-4, upper = 10),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.alpha"),
-                   lower = 1, upper = 1),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.subsample"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.colsample_bytree"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".auc.filter.frac"), lower = 0.1, upper = 0.3)
-    ))
+    
+    param_set <- ps(
+      auc_filter.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
+      auc_filter.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
+      auc_filter.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
+      auc_filter.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
+      auc_filter.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
+      auc_filter.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
+      auc_filter.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
+      auc_filter.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8),
+      auc_filter.classif.xgboost.auc.filter.frac = p_dbl(0.1, 0.3)
+    )
     
     #nofilter_xgb    
   } else if (grepl("no_filter.classif.xgboost", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.nrounds"),
-                   lower = 50, upper = 250),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.eta"),
-                   lower = 1e-4, upper = 0.4),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.max_depth"),
-                   lower = 1, upper = 15),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.min_child_weight"),
-                   lower = 1, upper = 10),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.gamma"),
-                   lower = 1e-4, upper = 10),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.alpha"),
-                   lower = 1, upper = 1),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.subsample"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.colsample_bytree"), lower = 0.5, upper = 0.8)
-    ))
+    
+    param_set <- ps(
+      no_filter.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
+      no_filter.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
+      no_filter.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
+      no_filter.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
+      no_filter.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
+      no_filter.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
+      no_filter.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
+      no_filter.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8)
+    )
     
     #perm_glm
   } else if (grepl("perm.classif.glmnet", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.glmnet.lambda"), lower = 0.001, upper = 0.20),
-      ParamDbl$new(paste0(glrn_id, ".permutation.filter.frac"), lower = 0.03, upper = 0.5)
-    ))
+    
+    param_set <- ps(
+      perm.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001,0.20),
+      perm.classif.glmnet.permutation.filter.frac = p_dbl(0.03,0.5)
+    )
     
     #pca_glm     
   } else if (grepl("pca.classif.glmnet", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.glmnet.lambda"), lower = 0.001, upper = 0.20),
-      ParamDbl$new(paste0(glrn_id, ".variance.filter.frac"), lower = 0.5, upper = 0.9)
-    ))
+    
+    param_set <- ps(
+      pca.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001,0.20),
+      pca.classif.glmnet.variance.filter.frac = p_dbl(0.5,0.9)
+    )
+    
     #auc_filter_glm     
   } else if (grepl("auc_filter.classif.glmnet", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.glmnet.lambda"), lower = 0.001, upper = 0.20),
-      ParamDbl$new(paste0(glrn_id, ".auc.filter.frac"), lower = 0.1, upper = 0.3)
-    ))
+    
+    param_set <- ps(
+      auc_filter.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001,0.20),
+      auc_filter.classif.glmnet.auc.filter.frac = p_dbl(0.1,0.3)
+    )
+    
     #no_filter_glm    
   } else if (grepl("no_filter.classif.glmnet", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.glmnet.lambda"), lower = 0.001, upper = 0.20)
-    ))
+    
+    param_set <- ps(
+      no_filter.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001, 0.20)
+    )
     
     # perm_svm
   } else if (grepl("perm.classif.svm", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.svm.cost"), lower = 2^-5, upper = 2^5),
-      ParamDbl$new(paste0(glrn_id, ".permutation.filter.frac"), lower = 0.03, upper = 0.5)
-    ))
+    
+    param_set <- ps(
+      perm.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
+      perm.classif.svm.permutation.filter.frac = p_dbl(0.03, 0.5)
+    )
+    
     #pca_svm    
   } else if (grepl("pca.classif.svm", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.svm.cost"), lower = 2^-5, upper = 2^5),
-      ParamDbl$new(paste0(glrn_id, ".variance.filter.frac"), lower = 0.5, upper = 0.9)
-    ))
+    
+    param_set <- ps(
+      pca.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
+      pca.classif.svm.variance.filter.frac = p_dbl(0.5, 0.9)
+    )
+    
     #auc_filter_svm    
   } else if (grepl("auc_filter.classif.svm", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.svm.cost"), lower = 2^-5, upper = 2^5),
-      ParamDbl$new(paste0(glrn_id, ".auc.filter.frac"), lower = 0.1, upper = 0.3)
-    ))
+    
+    param_set <- ps(
+      auc_filter.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
+      auc_filter.classif.svm.permutation.filter.frac = p_dbl(0.1, 0.3)
+    )
     
     #no_filter_svm    
   } else if (grepl("no_filter.classif.svm", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.svm.cost"), lower = 2^-5, upper = 2^5)
-    ))
+    
+    param_set <- ps(
+      no_filter.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5)
+    )
     
   } 
 }  

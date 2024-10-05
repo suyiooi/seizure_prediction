@@ -51,7 +51,7 @@ library(future)
 library(future.apply)
 
 #functions and hyperparameters
-setwd("~/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/scripts/chap3")
+setwd("~/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/seizure_prediction/seizure_prediction")
 source("functions.R")
 
 ```
@@ -101,13 +101,13 @@ filter_methods <- list(
   "no_filter" = po("nop"))
 
 #factor preprocessing
-factor_pipeline = po("removeconstants") %>>%
+factor_pipeline = po("scale","center") %>>% po("removeconstants") %>>%
   po("collapsefactors", no_collapse_above_prevalence = 0.01) %>>%
   po("encode", method = "one-hot",
      affect_columns = selector_cardinality_greater_than(2),
      id = "low_card_enc") %>>%
   po("encode", method = "treatment",
-     affect_columns = selector_type("factor"), id = "binary_enc") %>>% po("scale","center") 
+     affect_columns = selector_type("factor"), id = "binary_enc") 
 
 
 ```
@@ -218,7 +218,6 @@ for (i in seq_len(k)) {
   #make inner train task from outer train set
   inner_train_task = outer_train_task$clone()
   
-  
   graph_learners = list()
   
     for (learner in learners) {
@@ -236,6 +235,7 @@ for (i in seq_len(k)) {
                           list(GraphLearner$new(graph_learner)))
         }
     } #end learners 
+  
 
   #---inner loop: hyperparameter tuning for each graph learner---#
   
@@ -245,13 +245,15 @@ for (i in seq_len(k)) {
     
     #run inner loop in parallel
     
-    future::plan(multisession, workers = 4) #uses workers are specified
+    future::plan(multisession, workers = 8) #uses workers are specified
       
     glrn <- graph_learners[[j]]
     
     results[[i]][[j]] <- future_lapply(list(glrn), function(glrn){
   
       #fallback
+      #glrn$encapsulate(method = "evaluate", fallback = lrn("classif.log_reg", predict_type = "prob")) #not sure but the server does not set encap and fallback unless its written like this
+      
       glrn$encapsulate <- c(train = "evaluate", predict = "evaluate")
       glrn$fallback = lrn("classif.log_reg", predict_type = "prob")
     
