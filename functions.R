@@ -379,7 +379,8 @@ create_param_sets <- function(glrn_id) {
       perm.classif.ranger.classif.ranger.num.trees = p_int(50,250),
       
       perm.classif.ranger.classif.ranger.mtry = p_int(10,25),
-      perm.classif.ranger.permutation.filter.frac = p_dbl(0.05,0.3)
+      perm.classif.ranger.permutation.filter.frac = p_dbl(0.05,0.3),
+      perm.classif.ranger.classif.ranger.num.threads = p_int(4,4) #benji has 32 CPU and 2 threads per core
     )
     
     #pca_randomforest  
@@ -387,7 +388,8 @@ create_param_sets <- function(glrn_id) {
     param_set <- ps(
       pca.classif.ranger.classif.ranger.num.trees = p_int(50,250),
       pca.classif.ranger.classif.ranger.mtry = p_int(10,25),
-      pca.classif.ranger.variance.filter.frac = p_dbl(0.5,0.9)
+      pca.classif.ranger.variance.filter.frac = p_dbl(0.5,0.9),
+      pca.classif.ranger.classif.ranger.num.threads = p_int(4,4)
     )
     
     #auc_randomforest   
@@ -395,13 +397,15 @@ create_param_sets <- function(glrn_id) {
     param_set <- ps(
       auc_filter.classif.ranger.classif.ranger.num.trees = p_int(50,250),
       auc_filter.classif.ranger.classif.ranger.mtry = p_int(10,25),
-      auc_filter.classif.ranger.auc.filter.frac = p_dbl(0.1,0.3)
+      auc_filter.classif.ranger.auc.filter.frac = p_dbl(0.1,0.3),
+      auc_filter.classif.ranger.classif.ranger.num.threads = p_int(4,4)
     )
     
     #nofilter_randomforest   
   } else if (grepl("no_filter.classif.ranger", glrn_id)) {
     param_set <- ps(no_filter.classif.ranger.classif.ranger.num.trees = p_int(50,250),
-                    no_filter.classif.ranger.classif.ranger.mtry = p_int(10,25)
+                    no_filter.classif.ranger.classif.ranger.mtry = p_int(10,25),
+                    no_filter.classif.ranger.classif.ranger.num.threads = p_int(4,4)
     )
     
     #perm_xgb    
@@ -416,7 +420,8 @@ create_param_sets <- function(glrn_id) {
       perm.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
       perm.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
       perm.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5,0.8),
-      perm.classif.xgboost.permutation.filter.frac = p_dbl(0.05,0.3)
+      perm.classif.xgboost.permutation.filter.frac = p_dbl(0.05,0.3),
+      perm.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
     )
     
     #pca_xgb    
@@ -430,7 +435,8 @@ create_param_sets <- function(glrn_id) {
       pca.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
       pca.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
       pca.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8),
-      pca.classif.xgboost.variance.filter.frac = p_dbl(0.5, 0.9)
+      pca.classif.xgboost.variance.filter.frac = p_dbl(0.5, 0.9),
+      pca.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
     )
     
     #auc_filter_xgb    
@@ -445,7 +451,8 @@ create_param_sets <- function(glrn_id) {
       auc_filter.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
       auc_filter.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
       auc_filter.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8),
-      auc_filter.classif.xgboost.auc.filter.frac = p_dbl(0.1, 0.3)
+      auc_filter.classif.xgboost.auc.filter.frac = p_dbl(0.1, 0.3),
+      auc_filter.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
     )
     
     #nofilter_xgb    
@@ -459,7 +466,8 @@ create_param_sets <- function(glrn_id) {
       no_filter.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
       no_filter.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
       no_filter.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
-      no_filter.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8)
+      no_filter.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8),
+      no_filter.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
     )
     
     #perm_glm

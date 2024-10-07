@@ -101,7 +101,7 @@ filter_methods <- list(
   "no_filter" = po("nop"))
 
 #factor preprocessing
-factor_pipeline = po("scale","center") %>>% po("removeconstants") %>>%
+factor_pipeline = po("scale", "center") %>>% po("removeconstants") %>>%
   po("collapsefactors", no_collapse_above_prevalence = 0.01) %>>%
   po("encode", method = "one-hot",
      affect_columns = selector_cardinality_greater_than(2),
@@ -109,12 +109,11 @@ factor_pipeline = po("scale","center") %>>% po("removeconstants") %>>%
   po("encode", method = "treatment",
      affect_columns = selector_type("factor"), id = "binary_enc") 
 
-
 ```
 #task
 ```{r learner}
 #define the task
-task = TaskClassif$new(t1.dat, id = "szrec", target = "szrec1")
+task = TaskClassif$new(t1.dat, id = "szrec", target = "szrec1", positive = "yes")
 
 #learners
 learners <- list(lrn("classif.ranger",
@@ -236,7 +235,6 @@ for (i in seq_len(k)) {
         }
     } #end learners 
   
-
   #---inner loop: hyperparameter tuning for each graph learner---#
   
   results[[i]] <- list()
@@ -252,7 +250,7 @@ for (i in seq_len(k)) {
     results[[i]][[j]] <- future_lapply(list(glrn), function(glrn){
   
       #fallback
-      #glrn$encapsulate(method = "evaluate", fallback = lrn("classif.log_reg", predict_type = "prob")) #not sure but the server does not set encap and fallback unless its written like this
+      #glrn$encapsulate(method = "evaluate", fallback = lrn("classif.log_reg", predict_type = "prob"))
       
       glrn$encapsulate <- c(train = "evaluate", predict = "evaluate")
       glrn$fallback = lrn("classif.log_reg", predict_type = "prob")
