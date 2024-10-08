@@ -409,20 +409,20 @@ create_param_sets <- function(glrn_id) {
     )
     
     #perm_xgb    
-  } else if (grepl("perm.classif.xgboost", glrn_id)) {
+  #} else if (grepl("perm.classif.xgboost", glrn_id)) {
     
-    param_set <- ps(
-      perm.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
-      perm.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
-      perm.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
-      perm.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
-      perm.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
-      perm.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
-      perm.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
-      perm.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5,0.8),
-      perm.classif.xgboost.permutation.filter.frac = p_dbl(0.05,0.3),
-      perm.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
-    )
+    #param_set <- ps(
+      #perm.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
+      #perm.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
+      #perm.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
+      #perm.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
+      #perm.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
+      #perm.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
+      #perm.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
+      #perm.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5,0.8),
+      #perm.classif.xgboost.permutation.filter.frac = p_dbl(0.05,0.3),
+      #perm.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
+    #)
     
     #pca_xgb    
   } else if (grepl("pca.classif.xgboost", glrn_id)) {
@@ -471,12 +471,12 @@ create_param_sets <- function(glrn_id) {
     )
     
     #perm_glm
-  } else if (grepl("perm.classif.glmnet", glrn_id)) {
+  #} else if (grepl("perm.classif.glmnet", glrn_id)) {
     
-    param_set <- ps(
-      perm.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001,0.20),
-      perm.classif.glmnet.permutation.filter.frac = p_dbl(0.03,0.5)
-    )
+    #param_set <- ps(
+      #perm.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001,0.20),
+      #perm.classif.glmnet.permutation.filter.frac = p_dbl(0.03,0.5)
+   # )
     
     #pca_glm     
   } else if (grepl("pca.classif.glmnet", glrn_id)) {
@@ -502,12 +502,12 @@ create_param_sets <- function(glrn_id) {
     )
     
     # perm_svm
-  } else if (grepl("perm.classif.svm", glrn_id)) {
+  #} else if (grepl("perm.classif.svm", glrn_id)) {
     
-    param_set <- ps(
-      perm.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
-      perm.classif.svm.permutation.filter.frac = p_dbl(0.03, 0.5)
-    )
+    #param_set <- ps(
+      #perm.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
+      #perm.classif.svm.permutation.filter.frac = p_dbl(0.03, 0.5)
+    #)
     
     #pca_svm    
   } else if (grepl("pca.classif.svm", glrn_id)) {

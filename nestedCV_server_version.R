@@ -76,7 +76,7 @@ colnames(t1.dat)[start_hat:end_hat] <- paste0("subcort_", colnames(t1.dat[start_
 
 filter_methods <- list(
   "pca" = po("pca") %>>% po("filter", filter = flt("variance"), filter.frac = 0.8),
-  "perm" = po("filter", filter = flt("permutation"), param_vals = list(filter.frac = 0.3)),
+  #"perm" = po("filter", filter = flt("permutation"), param_vals = list(filter.frac = 0.3)),
   "auc_filter" = po("filter", filter = flt("auc"), param_vals = list(filter.frac = 0.5)),
   "no_filter" = po("nop"))
 
@@ -117,7 +117,7 @@ learners <- list(lrn("classif.ranger",
 measure = msr("classif.auc")
 
 #hyperparameter search strategy
-tuner = mlr3tuning::tnr("random_search", batch_size = 1) #change depending on cores
+tuner = mlr3tuning::tnr("random_search", batch_size = 10) #change depending on cores
 
 #store results
 train_sets <- list()
@@ -250,7 +250,7 @@ for (i in seq_len(k)) {
         resampling = inner_rsmp,
         measure = measure,
         search_space = param_set,
-        terminator = trm("evals", n_evals = 5) #increase for final run
+        terminator = trm("evals", n_evals = 100) #increase for final run
       )
       
       tuner$optimize(instance)
@@ -313,7 +313,7 @@ for (i in seq_len(k)) {
     learner = clin_glm,
     resampling = rsmp("cv", folds = 10),
     measure = measure,
-    terminator = trm("evals", n_evals = 10) # change this
+    terminator = trm("evals", n_evals = 100) # change this
   )
   
   clin_rr <- resample(clin_task, clin_glm, rsmp("cv", folds = 10),
