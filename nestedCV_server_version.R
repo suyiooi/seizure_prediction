@@ -8,7 +8,7 @@ library(dplyr)
 library(ggplot2)
 
 #ml/mlr3
-library(mlr3)
+library(mlr3) #v0.21.0 is on Benji
 library(mlr3learners)
 library(mlr3tuning)
 library(mlr3filters)
@@ -81,16 +81,12 @@ filter_methods <- list(
   "no_filter" = po("nop"))
 
 #factor preprocessing
-#factor_pipeline = po("scale","center") %>>% po("removeconstants") %>>%
-  #po("encode", method = "one-hot",
-     #affect_columns = selector_cardinality_greater_than(2),
-     #id = "low_card_enc") %>>%
-  #po("encode", method = "treatment",
-     #affect_columns = selector_type("factor"), id = "binary_enc") 
-
 factor_pipeline = po("scale","center") %>>% po("removeconstants") %>>%
-po("encode", method = "treatment",
-   affect_columns = selector_type("factor"), id = "binary_enc") 
+  po("encode", method = "one-hot",
+     affect_columns = selector_cardinality_greater_than(2),
+     id = "low_card_enc") %>>%
+  po("encode", method = "treatment",
+     affect_columns = selector_type("factor"), id = "binary_enc") 
 
 #task
 
@@ -228,6 +224,7 @@ for (i in seq_len(k)) {
     #run inner loop in parallel
     
     #future::plan("multisession", workers = 8) #uses workers are specified
+    
     future::plan("sequential") #perhaps this avoids the col_roles error
     
     glrn <- graph_learners[[j]]
@@ -235,9 +232,9 @@ for (i in seq_len(k)) {
     results[[i]][[j]] <- future_lapply(list(glrn), function(glrn){
       
       #fallback
-      glrn$encapsulate(method = "evaluate", fallback = lrn("classif.log_reg", predict_type = "prob")) #not sure but the server does not set encap and fallback unless its written like this
+      glrn$encapsulate(method = "evaluate", fallback = lrn("classif.log_reg", predict_type = "prob")) #mlr3 v0.21.0 requires this but the fall-back keeps kicking in
       
-      #glrn$encapsulate <- c(train = "evaluate", predict = "evaluate")
+      #glrn$encapsulate <- c(train = "evaluate", predict = "evaluate") #this works on mlr3 v0.20.0 without the fallback kicking in
       #glrn$fallback = lrn("classif.log_reg", predict_type = "prob")
       
       #hyperparameter set

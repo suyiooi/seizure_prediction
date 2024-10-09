@@ -522,7 +522,7 @@ create_param_sets <- function(glrn_id) {
     
     param_set <- ps(
       auc_filter.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
-      auc_filter.classif.svm.permutation.filter.frac = p_dbl(0.1, 0.3)
+      auc_filter.classif.svm.auc.filter.frac = p_dbl(0.1, 0.3)
     )
     
     #no_filter_svm    
