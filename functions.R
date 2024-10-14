@@ -268,6 +268,9 @@ extract_best_param <- function(results, model) {
         
         rf_param <- results[[i]][[j]][[1]][["best_params"]]
         
+        rf_auc <- as.data.frame(results[[i]][[j]][[1]][["outer_performance"]])
+      
+        
         rf_grep <- rf_param[grep(".filter.frac|num.trees|mtry", names(rf_param))]
         
         if (length(grep("filter.frac", names(rf_param))) == 0) {
@@ -279,19 +282,33 @@ extract_best_param <- function(results, model) {
           rf_param_subset <- rf_param[grep(".filter.frac|num.trees|mtry", names(rf_param))]
         }
         
-        return(rf_param_subset)
-      })
+        rf_param_df <- mutate(as.data.frame(rf_param_subset), rf_auc)
+        
+        return(rf_param_df)
+      
+        })
       
     })
-    return(rf_best_param)
     
-  } else if (as.character(model) == "xgboost") {
+    rf_hp <- as.data.frame(rf_best_param)
     
-    xgb_best_param <- as.data.frame(sapply(1:10, function(i) {
+    rownames(rf_hp) <- c("pca.filterfrac","pca.numtree","pca.mtry","pcafilter.auc",
+                         "auc.filterfrac","auc.numtree","auc.mtry","aucfilter.auc",
+                         "numtree","mtry","NA","nofilter.auc")
+    colnames(rf_hp) <- paste0("fold ", 1:10)
+    
+    return(rf_hp)
+  
+    
+} else if (as.character(model) == "xgboost") {
+    
+    xgb_best_param <- sapply(1:10, function(i) {
       
       sapply(4:6, function(j) {
         
         xgb_param <- results[[i]][[j]][[1]][["best_params"]]
+        
+        xgb_auc <- as.data.frame(results[[i]][[j]][[1]][["outer_performance"]])
         
         xgb_grep <- xgb_param[grep(".filter.frac|nrounds|eta|max_depth|min_child_weight|gamma|subsample|colsample_bytree", names(xgb_param))]
         
@@ -305,25 +322,44 @@ extract_best_param <- function(results, model) {
           xgb_param_subset <- xgb_grep
         }
         
-        return(xgb_param_subset)
+        xgb_param_df <- mutate(as.data.frame(xgb_param_subset), xgb_auc)
+        
+        return(xgb_param_df)
+        
       })
       
-    }))
-    return(xgb_best_param)
+    })
+    
+    xgb_hp <- as.data.frame(xgb_best_param)
+    
+    rownames(xgb_hp) <- c("pca.filterfrac","pca.nrounds","pca.eta","pca.maxdepth",
+                          "pca.minchildwgt","pca.gamma","pca.subsample","pca.colsamplebytree", "pcafilter.auc",
+                          "auc.filterfrac","auc.nrounds","auc.eta","auc.maxdepth",
+                          "auc.minchildwgt","auc.gamma","auc.subsample","auc.colsamplebytree","aucfilter.auc",
+                          "nrounds","eta","maxdepth",
+                          "minchildwgt","gamma","subsample","colsamplebytree","NA","nofilter.auc")
+    
+    colnames(xgb_hp) <- paste0("fold ", 1:10)
+    
+    return(xgb_hp)
+
     
   } else if (as.character(model) == "lasso") {
     
-    lasso_best_param <- as.data.frame(sapply(1:10, function(i) {
+    lasso_best_param <- sapply(1:10, function(i) {
       
       sapply(7:9, function(j) {
         
         lasso_param <- results[[i]][[j]][[1]][["best_params"]]
+        
+        lasso_auc <- results[[i]][[j]][[1]][["outer_performance"]]
         
         lasso_grep <- lasso_param[grep(".filter.frac|lambda", names(lasso_param))]
         
         if (length(grep(".filter.frac", names(lasso_param))) == 0) {
           
           lasso_param_subset <- lasso_param[grep("lambda", names(lasso_param))]
+          
           lasso_param_subset[".filter.frac"] <- NA
           
         } else {
@@ -331,18 +367,33 @@ extract_best_param <- function(results, model) {
           lasso_param_subset <- lasso_grep
         }
         
-        return(lasso_param_subset)
+        lasso_param_df <- mutate(as.data.frame(lasso_param_subset), lasso_auc)
+        
+        return(lasso_param_df)
+  
+        
       })
-    }))
-    return(lasso_best_param)
+      
+    })
+    
+    lasso_hp <- as.data.frame(lasso_best_param)
+    
+    rownames(lasso_hp) <- c("pca.filterfrac","pca.lambda","pcafilter.auc",
+                         "auc.filterfrac","auc.lambda","aucfilter.auc",
+                         "lambda", "NA","nofilter.auc")
+    colnames(lasso_hp) <- paste0("fold ", 1:10)
+    
+    return(lasso_hp)
     
   } else if (as.character(model) == "svm") {
     
-    svm_best_param <- as.data.frame(sapply(1:10, function(i) {
+    svm_best_param <- sapply(1:10, function(i) {
       
       sapply(10:12, function(j) {
         
         svm_param <- results[[i]][[j]][[1]][["best_params"]]
+        
+        svm_auc <- results[[i]][[j]][[1]][["outer_performance"]]
         
         svm_grep <- svm_param[grep(".filter.frac|.cost", names(svm_param))]
         
@@ -357,13 +408,63 @@ extract_best_param <- function(results, model) {
           svm_param_subset <- svm_grep
         }
         
-        return(svm_param_subset)
+        svm_param_df <- mutate(as.data.frame(svm_param_subset), svm_auc)
+        
+        return(svm_param_df)
+      
       })
-    }))
-    return(svm_best_param)
+      
+    })
+    
+    svm_hp <- as.data.frame(svm_best_param)
+    
+    rownames(svm_hp) <- c("pca.filterfrac","pca.cost","pcafilter.auc",
+                            "auc.filterfrac","auc.cost","aucfilter.auc",
+                            "cost","NA","nofilter.auc")
+    colnames(svm_hp) <- paste0("fold ",1:10)
+    
+    return(svm_hp)
   }
 }
 
+make_one_test_fold <- function(data, fold){
+  
+  train_data = data[train_sets[[fold]], ]
+  test_data <- data[test_sets[[fold]], ]
+  
+  train_df_list <- extract_featuregroup_list(train_data)
+  test_df_list  <- extract_featuregroup_list(test_data)
+  
+  covars.train = model.matrix(~age+factor(sex)+factor(szrec1), data=train_data)
+  batch.train = train_data$batch
+  batch.test = test_data$batch 
+  
+  #apply combat function
+  combat.train <- do_neuroCombat(train_df_list, batch.train, covars.train)
+  
+  #get dat.combat and estimates
+  dat.combat.train.list <- lapply(combat.train, function(x) x$dat.combat)
+  
+  dat.combat.train <- get_dat_combated_df(dat.combat.train.list)
+  
+  #apply combat on test using the previously generated estimates
+  cb.train.estimates <- lapply(combat.train, function(x) x$estimates)
+  
+  dat.combat.test.list <- do_neuroCombatFromTraining(
+    test_df_list, batch.test, cb.train.estimates)
+  
+  dat.combat.test <- get_dat_combated_df(dat.combat.test.list)
+  
+  #extract clinical factor variables
+  t1.clin <- extract_clin_factors(train_data)
+  t1.clin.test <- extract_clin_factors(test_data)
+  
+  #combine combated df with clinical factors
+  t1.train.new <- data.frame(t1.clin, dat.combat.train)
+  t1.test.new <- data.frame(t1.clin.test, dat.combat.test)
+  
+  return(t1.test.new)
+}
 
     
     #---hyperparameters---#

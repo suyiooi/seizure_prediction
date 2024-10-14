@@ -1,7 +1,6 @@
 #to run on server
 
 #libraries
-
 #data
 
 library(dplyr)
@@ -32,7 +31,7 @@ library(future)
 library(future.apply)
 
 #functions and hyperparameters
-setwd("/home/projects/suyi_structural_mri/seizure_prediction/t1w.clin.image.scan.201.csv", header = TRUE)
+setwd("/home/projects/suyi_structural_mri/seizure_prediction")
 source("functions.R")
 
 #data
@@ -337,10 +336,14 @@ for (i in seq_len(k)) {
 
 #save models
 
-#saveRDS(results, file="results_190924.RData")
-#saveRDS(clin_pred, file = "clin_pred_190924.RData")
-#saveRDS(clin_model, file = "clin_model_190924.RData")
+#saveRDS(results, file="results_111024.RData")
+saveRDS(results, file = "/home/projects/suyi_structural_mri/seizure_prediction/results_111024.RData")
+
+#saveRDS(clin_pred, file = "clin_pred_111024.RData")
+#saveRDS(clin_model, file = "clin_model_111024.RData")
 
 #to open
 #results <- readRDS("~/results_190924.RData")
+#test_sets <- readRDS("~/test_sets_110224.RData")
+#train_sets <- readRDS("~/train_sets_110224.RData")
 
