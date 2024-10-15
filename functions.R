@@ -473,15 +473,29 @@ make_one_test_fold <- function(data, fold){
 create_param_sets <- function(glrn_id) {
   
   glrn_id = glrn$id
+  nfeat <- outer_train_task$ncol
   
+  #imp_randomforest  
+  if (grepl("imp.classif.ranger", glrn_id)) {
+    
+    filt_features <- min(5, nfeat)
+    
+    max_mtry <- min(filt_features, nfeat)
+    
+    param_set <- ps(
+      imp.classif.ranger.classif.ranger.num.trees = p_int(50,250),
+      imp.classif.ranger.importance.filter.nfeat = p_int(5, filt_features),
+      imp.classif.ranger.classif.ranger.mtry = p_int(5, max_mtry),
+      imp.classif.ranger.classif.ranger.num.threads = p_int(4,4) #benji has 32 CPU and 2 threads per core
+    )
+
   #perm_randomforest  
-  if (grepl("perm.classif.ranger", glrn_id)) {
+  } else if (grepl("perm.classif.ranger", glrn_id)) {
     param_set <- ps(
       perm.classif.ranger.classif.ranger.num.trees = p_int(50,250),
-      
       perm.classif.ranger.classif.ranger.mtry = p_int(10,25),
       perm.classif.ranger.permutation.filter.frac = p_dbl(0.05,0.3),
-      perm.classif.ranger.classif.ranger.num.threads = p_int(4,4) #benji has 32 CPU and 2 threads per core
+      perm.classif.ranger.classif.ranger.num.threads = p_int(4,4) 
     )
     
     #pca_randomforest  
@@ -524,6 +538,24 @@ create_param_sets <- function(glrn_id) {
       #perm.classif.xgboost.permutation.filter.frac = p_dbl(0.05,0.3),
       #perm.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
     #)
+    
+    
+    
+    #imp_xgb    
+  } else if (grepl("imp.classif.xgboost", glrn_id)) {
+    
+    param_set <- ps(
+      imp.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
+      imp.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
+      imp.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
+      imp.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
+      imp.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
+      imp.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
+      imp.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
+      imp.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8),
+      imp.classif.xgboost.importance.filter.nfeat = p_int(5, 25),
+      imp.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
+    )
     
     #pca_xgb    
   } else if (grepl("pca.classif.xgboost", glrn_id)) {
@@ -579,6 +611,14 @@ create_param_sets <- function(glrn_id) {
       #perm.classif.glmnet.permutation.filter.frac = p_dbl(0.03,0.5)
    # )
     
+    #imp_glm     
+  } else if (grepl("imp.classif.glmnet", glrn_id)) {
+    
+    param_set <- ps(
+      imp.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001,0.20),
+      imp.classif.glmnet.importance.filter.nfeat = p_int(5,25)
+    )
+    
     #pca_glm     
   } else if (grepl("pca.classif.glmnet", glrn_id)) {
     
@@ -609,6 +649,14 @@ create_param_sets <- function(glrn_id) {
       #perm.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
       #perm.classif.svm.permutation.filter.frac = p_dbl(0.03, 0.5)
     #)
+    
+    #imp_svm    
+  } else if (grepl("imp.classif.svm", glrn_id)) {
+    
+    param_set <- ps(
+      imp.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
+      imp.classif.svm.importance.filter.nfeat = p_int(5, 25)
+    )
     
     #pca_svm    
   } else if (grepl("pca.classif.svm", glrn_id)) {
