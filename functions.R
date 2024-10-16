@@ -123,7 +123,7 @@ extract_auc <- function(results, loop){
   if (as.character(loop) == "outer"){
     
     outer_performances <- as.data.frame(sapply(1:10, function(i) {
-      sapply(1:12, function(j) {
+      sapply(1:16, function(j) {
         results[[i]][[j]][[1]][["outer_performance"]]
       })
     }))
@@ -131,14 +131,14 @@ extract_auc <- function(results, loop){
     mean_auc <- as.numeric(c())
     
     for (k in nrow(outer_performances)){
-      mean_auc <- sapply(1:12, function(k) {mean(as.numeric(outer_performances[k,1:10]))
+      mean_auc <- sapply(1:16, function(k) {mean(as.numeric(outer_performances[k,1:10]))
       })
     }
     
     outer_performances$mean_auc <- mean_auc
     colnames(outer_performances) <- c(paste0("Fold", 1:10),
                                       paste0("mean_outer_auc"))
-    rownames(outer_performances) <- sapply(1:12, function(j) {
+    rownames(outer_performances) <- sapply(1:16, function(j) {
       results[[i]][[j]][[1]][["learner"]]
     })
     
@@ -146,7 +146,7 @@ extract_auc <- function(results, loop){
     
   } else {
     inner_performances <- as.data.frame(sapply(1:10, function(i) {
-      sapply(1:12, function(j){
+      sapply(1:16, function(j){
         
         results[[i]][[j]][[1]][["inner_performance"]]
       })
@@ -155,14 +155,14 @@ extract_auc <- function(results, loop){
     mean_auc <- as.numeric(c())
     
     for (k in nrow(inner_performances)){
-      mean_auc <- sapply(1:12, function(k) { mean(as.numeric(inner_performances[k,1:10]))
+      mean_auc <- sapply(1:16, function(k) { mean(as.numeric(inner_performances[k,1:10]))
       })
     }
     
     inner_performances$mean_auc <- mean_auc
     colnames(inner_performances) <- c(paste0("Fold", 1:10),
                                       paste0("mean_inner_auc"))
-    rownames(inner_performances) <- sapply(1:12, function(j) {
+    rownames(inner_performances) <- sapply(1:16, function(j) {
       results[[i]][[j]][[1]][["learner"]]
     })
   }
@@ -264,35 +264,42 @@ extract_best_param <- function(results, model) {
     
     rf_best_param <- sapply(1:10, function(i) {
       
-      sapply(1:3, function(j) {
+      sapply(1:4, function(j) {
         
         rf_param <- results[[i]][[j]][[1]][["best_params"]]
         
         rf_auc <- as.data.frame(results[[i]][[j]][[1]][["outer_performance"]])
-      
         
-        rf_grep <- rf_param[grep(".filter.frac|num.trees|mtry", names(rf_param))]
-        
-        if (length(grep("filter.frac", names(rf_param))) == 0) {
+        if (length(grep("filter.nfeat", names(rf_param))) > 0) {
           
-          rf_param_subset <- rf_param[grep("num.trees|mtry", names(rf_param))]
-          rf_param_subset[".filter.frac"] <- NA
+          rf_param_subset <- rf_param[grep("filter.nfeat|num.trees", names(rf_param))]
+          
+          rf_param_subset["mtry"] <- NA
+          
+        } else if (length(grep("filter.frac", names(rf_param))) > 0){
+          
+          rf_param_subset <- rf_param[grep("filter.frac|num.trees|mtry", names(rf_param))]
           
         } else {
-          rf_param_subset <- rf_param[grep(".filter.frac|num.trees|mtry", names(rf_param))]
+          
+          rf_param_subset <- rf_param[grep("num.trees|mtry", names(rf_param))]
+          
+          rf_param_subset["filter"] <- NA
+          
         }
         
         rf_param_df <- mutate(as.data.frame(rf_param_subset), rf_auc)
         
         return(rf_param_df)
-      
-        })
+        
+      })
       
     })
     
     rf_hp <- as.data.frame(rf_best_param)
     
-    rownames(rf_hp) <- c("pca.filterfrac","pca.numtree","pca.mtry","pcafilter.auc",
+    rownames(rf_hp) <- c("imp.filternfeat","imp.numtree","imp.mtry","impfilter.auc",
+                         "pca.filterfrac","pca.numtree","pca.mtry","pcafilter.auc",
                          "auc.filterfrac","auc.numtree","auc.mtry","aucfilter.auc",
                          "numtree","mtry","NA","nofilter.auc")
     colnames(rf_hp) <- paste0("fold ", 1:10)
@@ -304,22 +311,28 @@ extract_best_param <- function(results, model) {
     
     xgb_best_param <- sapply(1:10, function(i) {
       
-      sapply(4:6, function(j) {
+      sapply(5:8, function(j) {
         
         xgb_param <- results[[i]][[j]][[1]][["best_params"]]
         
         xgb_auc <- as.data.frame(results[[i]][[j]][[1]][["outer_performance"]])
         
-        xgb_grep <- xgb_param[grep(".filter.frac|nrounds|eta|max_depth|min_child_weight|gamma|subsample|colsample_bytree", names(xgb_param))]
-        
-        if (length(grep("filter.frac", names(xgb_param))) == 0) {
+        if (length(grep("filter.nfeat", names(xgb_param))) > 0) {
           
-          xgb_param_subset <- xgb_param[grep("nrounds|eta|max_depth|min_child_weight|gamma|subsample|colsample_bytree", names(xgb_param))]
-          xgb_param_subset[".filter.frac"] <- NA
+          xgb_param_subset <- xgb_param[grep("filter.nfeat|nrounds|eta|max_depth|min_child_weight|gamma|subsample|colsample_bytree", names(xgb_param))]
+          
+          #xgb_param_subset[".filter.frac"] <- NA
+          
+        } else if (length(grep("filter.frac", names(xgb_param))) > 0){
+          
+          xgb_param_subset <- xgb_param[grep("filter.frac|nrounds|eta|max_depth|min_child_weight|gamma|subsample|colsample_bytree", names(xgb_param))]
           
         } else {
           
-          xgb_param_subset <- xgb_grep
+          xgb_param_subset <- xgb_param[grep("nrounds|eta|max_depth|min_child_weight|gamma|subsample|colsample_bytree", names(xgb_param))]
+          
+          xgb_param_subset["filter"] <- NA
+          
         }
         
         xgb_param_df <- mutate(as.data.frame(xgb_param_subset), xgb_auc)
@@ -332,7 +345,9 @@ extract_best_param <- function(results, model) {
     
     xgb_hp <- as.data.frame(xgb_best_param)
     
-    rownames(xgb_hp) <- c("pca.filterfrac","pca.nrounds","pca.eta","pca.maxdepth",
+    rownames(xgb_hp) <- c("imp.filternfeat","imp.nrounds","imp.eta","imp.maxdepth",
+                          "imp.minchildwgt","imp.gamma","imp.subsample","imp.colsamplebytree", "impfilter.auc",
+                          "pca.filterfrac","pca.nrounds","pca.eta","pca.maxdepth",
                           "pca.minchildwgt","pca.gamma","pca.subsample","pca.colsamplebytree", "pcafilter.auc",
                           "auc.filterfrac","auc.nrounds","auc.eta","auc.maxdepth",
                           "auc.minchildwgt","auc.gamma","auc.subsample","auc.colsamplebytree","aucfilter.auc",
@@ -348,39 +363,45 @@ extract_best_param <- function(results, model) {
     
     lasso_best_param <- sapply(1:10, function(i) {
       
-      sapply(7:9, function(j) {
+      sapply(8:11, function(j) {
         
         lasso_param <- results[[i]][[j]][[1]][["best_params"]]
         
         lasso_auc <- results[[i]][[j]][[1]][["outer_performance"]]
         
-        lasso_grep <- lasso_param[grep(".filter.frac|lambda", names(lasso_param))]
+        #lasso_grep <- lasso_param[grep(".filter.frac|lambda", names(lasso_param))]
         
-        if (length(grep(".filter.frac", names(lasso_param))) == 0) {
+        if (length(grep(".filter.nfeat", names(lasso_param))) > 0) {
           
-          lasso_param_subset <- lasso_param[grep("lambda", names(lasso_param))]
+          lasso_param_subset <- lasso_param[grep("filter.nfeat|lambda", names(lasso_param))]
           
-          lasso_param_subset[".filter.frac"] <- NA
+        } else if (length(grep(".filter.frac", names(lasso_param))) > 0){
+          
+          lasso_param_subset <- lasso_param[grep("filter.frac|lambda", names(lasso_param))]
           
         } else {
           
-          lasso_param_subset <- lasso_grep
+          lasso_param_subset <- lasso_param[grep("lambda", names(lasso_param))]
+          
+          lasso_param_subset["filter"] <- NA
+        
         }
         
         lasso_param_df <- mutate(as.data.frame(lasso_param_subset), lasso_auc)
         
         return(lasso_param_df)
   
-        
       })
       
     })
     
     lasso_hp <- as.data.frame(lasso_best_param)
     
-    rownames(lasso_hp) <- c("pca.filterfrac","pca.lambda","pcafilter.auc",
+    rownames(lasso_hp) <- c("imp.filternfeat","imp.lambda","impfilter.auc",
+                            "pca.filterfrac","pca.lambda","pcafilter.auc",
                          "auc.filterfrac","auc.lambda","aucfilter.auc",
                          "lambda", "NA","nofilter.auc")
+    
     colnames(lasso_hp) <- paste0("fold ", 1:10)
     
     return(lasso_hp)
@@ -389,23 +410,27 @@ extract_best_param <- function(results, model) {
     
     svm_best_param <- sapply(1:10, function(i) {
       
-      sapply(10:12, function(j) {
+      sapply(11:16, function(j) {
         
         svm_param <- results[[i]][[j]][[1]][["best_params"]]
         
         svm_auc <- results[[i]][[j]][[1]][["outer_performance"]]
         
-        svm_grep <- svm_param[grep(".filter.frac|.cost", names(svm_param))]
+        #svm_grep <- svm_param[grep(".filter.frac|.cost", names(svm_param))]
         
-        if (length(grep(".filter.frac", names(svm_param))) == 0) {
+        if (length(grep(".filter.nfeat", names(svm_param))) > 0) {
           
-          svm_param_subset <- svm_param[grep(".cost", names(svm_param))]
+          svm_param_subset <- svm_param[grep("filter.nfeat|cost", names(svm_param))]
           
-          svm_param_subset[".filter.frac"] <- NA
+        } else if (length(grep(".filter.frac", names(svm_param))) > 0) {
+          
+          svm_param_subset <- svm_param[grep("filter.frac|cost", names(svm_param))]
+          
           
         } else {
+          svm_param_subset <- svm_param[grep("cost", names(svm_param))]
           
-          svm_param_subset <- svm_grep
+          svm_param_subset["filter"] <- NA
         }
         
         svm_param_df <- mutate(as.data.frame(svm_param_subset), svm_auc)
@@ -418,7 +443,8 @@ extract_best_param <- function(results, model) {
     
     svm_hp <- as.data.frame(svm_best_param)
     
-    rownames(svm_hp) <- c("pca.filterfrac","pca.cost","pcafilter.auc",
+    rownames(svm_hp) <- c("imp.filternfeat", "imp.cost", "impfilter.auc",
+                          "pca.filterfrac","pca.cost","pcafilter.auc",
                             "auc.filterfrac","auc.cost","aucfilter.auc",
                             "cost","NA","nofilter.auc")
     colnames(svm_hp) <- paste0("fold ",1:10)
@@ -473,19 +499,19 @@ make_one_test_fold <- function(data, fold){
 create_param_sets <- function(glrn_id) {
   
   glrn_id = glrn$id
-  nfeat <- outer_train_task$ncol
+  
+  #nfeat <- outer_train_task$ncol
   
   #imp_randomforest  
   if (grepl("imp.classif.ranger", glrn_id)) {
     
-    filt_features <- min(5, nfeat)
-    
-    max_mtry <- min(filt_features, nfeat)
+    #filt_features <- min(5, nfeat)
+    #max_mtry <- min(filt_features, nfeat)
     
     param_set <- ps(
       imp.classif.ranger.classif.ranger.num.trees = p_int(50,250),
-      imp.classif.ranger.importance.filter.nfeat = p_int(5, filt_features),
-      imp.classif.ranger.classif.ranger.mtry = p_int(5, max_mtry),
+      imp.classif.ranger.importance.filter.nfeat = p_int(5, 30),
+      #imp.classif.ranger.classif.ranger.mtry = p_int(10,25), #mtry cannot be larger than nfeat so cannot tune mtry?
       imp.classif.ranger.classif.ranger.num.threads = p_int(4,4) #benji has 32 CPU and 2 threads per core
     )
 

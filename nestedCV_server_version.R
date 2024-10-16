@@ -246,7 +246,7 @@ for (i in seq_len(k)) {
         resampling = inner_rsmp,
         measure = measure,
         search_space = param_set,
-        terminator = trm("evals", n_evals = 5) #increase for final run
+        terminator = trm("evals", n_evals = 10) #increase for final run
       )
       
       tuner$optimize(instance)
@@ -337,7 +337,7 @@ for (i in seq_len(k)) {
 #save models
 
 #saveRDS(results, file="results_111024.RData")
-saveRDS(results, file = "/home/projects/suyi_structural_mri/seizure_prediction/results_111024.RData")
+#saveRDS(results, file = "/home/projects/suyi_structural_mri/seizure_prediction/results_161024.RData")
 
 #saveRDS(clin_pred, file = "clin_pred_111024.RData")
 #saveRDS(clin_model, file = "clin_model_111024.RData")
