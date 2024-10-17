@@ -123,7 +123,7 @@ extract_auc <- function(results, loop){
   if (as.character(loop) == "outer"){
     
     outer_performances <- as.data.frame(sapply(1:10, function(i) {
-      sapply(1:12, function(j) {
+      sapply(1:16, function(j) {
         results[[i]][[j]][[1]][["outer_performance"]]
       })
     }))
@@ -131,14 +131,14 @@ extract_auc <- function(results, loop){
     mean_auc <- as.numeric(c())
     
     for (k in nrow(outer_performances)){
-      mean_auc <- sapply(1:12, function(k) {mean(as.numeric(outer_performances[k,1:10]))
+      mean_auc <- sapply(1:16, function(k) {mean(as.numeric(outer_performances[k,1:10]))
       })
     }
     
     outer_performances$mean_auc <- mean_auc
     colnames(outer_performances) <- c(paste0("Fold", 1:10),
                                       paste0("mean_outer_auc"))
-    rownames(outer_performances) <- sapply(1:12, function(j) {
+    rownames(outer_performances) <- sapply(1:16, function(j) {
       results[[i]][[j]][[1]][["learner"]]
     })
     
@@ -146,7 +146,7 @@ extract_auc <- function(results, loop){
     
   } else {
     inner_performances <- as.data.frame(sapply(1:10, function(i) {
-      sapply(1:12, function(j){
+      sapply(1:16, function(j){
         
         results[[i]][[j]][[1]][["inner_performance"]]
       })
@@ -155,14 +155,14 @@ extract_auc <- function(results, loop){
     mean_auc <- as.numeric(c())
     
     for (k in nrow(inner_performances)){
-      mean_auc <- sapply(1:12, function(k) { mean(as.numeric(inner_performances[k,1:10]))
+      mean_auc <- sapply(1:16, function(k) { mean(as.numeric(inner_performances[k,1:10]))
       })
     }
     
     inner_performances$mean_auc <- mean_auc
     colnames(inner_performances) <- c(paste0("Fold", 1:10),
                                       paste0("mean_inner_auc"))
-    rownames(inner_performances) <- sapply(1:12, function(j) {
+    rownames(inner_performances) <- sapply(1:16, function(j) {
       results[[i]][[j]][[1]][["learner"]]
     })
   }
@@ -264,282 +264,447 @@ extract_best_param <- function(results, model) {
     
     rf_best_param <- sapply(1:10, function(i) {
       
-      sapply(1:3, function(j) {
+      sapply(1:4, function(j) {
         
         rf_param <- results[[i]][[j]][[1]][["best_params"]]
         
-        rf_grep <- rf_param[grep(".filter.frac|num.trees|mtry", names(rf_param))]
+        rf_auc <- as.data.frame(results[[i]][[j]][[1]][["outer_performance"]])
         
-        if (length(grep("filter.frac", names(rf_param))) == 0) {
+        if (length(grep("filter.nfeat", names(rf_param))) > 0) {
           
-          rf_param_subset <- rf_param[grep("num.trees|mtry", names(rf_param))]
-          rf_param_subset[".filter.frac"] <- NA
+          rf_param_subset <- rf_param[grep("filter.nfeat|num.trees", names(rf_param))]
+          
+          rf_param_subset["mtry"] <- NA
+          
+        } else if (length(grep("filter.frac", names(rf_param))) > 0){
+          
+          rf_param_subset <- rf_param[grep("filter.frac|num.trees|mtry", names(rf_param))]
           
         } else {
-          rf_param_subset <- rf_param[grep(".filter.frac|num.trees|mtry", names(rf_param))]
+          
+          rf_param_subset <- rf_param[grep("num.trees|mtry", names(rf_param))]
+          
+          rf_param_subset["filter"] <- NA
+          
         }
         
-        return(rf_param_subset)
+        rf_param_df <- mutate(as.data.frame(rf_param_subset), rf_auc)
+        
+        return(rf_param_df)
+        
       })
       
     })
-    return(rf_best_param)
     
-  } else if (as.character(model) == "xgboost") {
+    rf_hp <- as.data.frame(rf_best_param)
     
-    xgb_best_param <- as.data.frame(sapply(1:10, function(i) {
+    rownames(rf_hp) <- c("imp.filternfeat","imp.numtree","imp.mtry","impfilter.auc",
+                         "pca.filterfrac","pca.numtree","pca.mtry","pcafilter.auc",
+                         "auc.filterfrac","auc.numtree","auc.mtry","aucfilter.auc",
+                         "numtree","mtry","NA","nofilter.auc")
+    colnames(rf_hp) <- paste0("fold ", 1:10)
+    
+    return(rf_hp)
+  
+    
+} else if (as.character(model) == "xgboost") {
+    
+    xgb_best_param <- sapply(1:10, function(i) {
       
-      sapply(4:6, function(j) {
+      sapply(5:8, function(j) {
         
         xgb_param <- results[[i]][[j]][[1]][["best_params"]]
         
-        xgb_grep <- xgb_param[grep(".filter.frac|nrounds|eta|max_depth|min_child_weight|gamma|subsample|colsample_bytree", names(xgb_param))]
+        xgb_auc <- as.data.frame(results[[i]][[j]][[1]][["outer_performance"]])
         
-        if (length(grep("filter.frac", names(xgb_param))) == 0) {
+        if (length(grep("filter.nfeat", names(xgb_param))) > 0) {
           
-          xgb_param_subset <- xgb_param[grep("nrounds|eta|max_depth|min_child_weight|gamma|subsample|colsample_bytree", names(xgb_param))]
-          xgb_param_subset[".filter.frac"] <- NA
+          xgb_param_subset <- xgb_param[grep("filter.nfeat|nrounds|eta|max_depth|min_child_weight|gamma|subsample|colsample_bytree", names(xgb_param))]
+          
+          #xgb_param_subset[".filter.frac"] <- NA
+          
+        } else if (length(grep("filter.frac", names(xgb_param))) > 0){
+          
+          xgb_param_subset <- xgb_param[grep("filter.frac|nrounds|eta|max_depth|min_child_weight|gamma|subsample|colsample_bytree", names(xgb_param))]
           
         } else {
           
-          xgb_param_subset <- xgb_grep
+          xgb_param_subset <- xgb_param[grep("nrounds|eta|max_depth|min_child_weight|gamma|subsample|colsample_bytree", names(xgb_param))]
+          
+          xgb_param_subset["filter"] <- NA
+          
         }
         
-        return(xgb_param_subset)
+        xgb_param_df <- mutate(as.data.frame(xgb_param_subset), xgb_auc)
+        
+        return(xgb_param_df)
+        
       })
       
-    }))
-    return(xgb_best_param)
+    })
+    
+    xgb_hp <- as.data.frame(xgb_best_param)
+    
+    rownames(xgb_hp) <- c("imp.filternfeat","imp.nrounds","imp.eta","imp.maxdepth",
+                          "imp.minchildwgt","imp.gamma","imp.subsample","imp.colsamplebytree", "impfilter.auc",
+                          "pca.filterfrac","pca.nrounds","pca.eta","pca.maxdepth",
+                          "pca.minchildwgt","pca.gamma","pca.subsample","pca.colsamplebytree", "pcafilter.auc",
+                          "auc.filterfrac","auc.nrounds","auc.eta","auc.maxdepth",
+                          "auc.minchildwgt","auc.gamma","auc.subsample","auc.colsamplebytree","aucfilter.auc",
+                          "nrounds","eta","maxdepth",
+                          "minchildwgt","gamma","subsample","colsamplebytree","NA","nofilter.auc")
+    
+    colnames(xgb_hp) <- paste0("fold ", 1:10)
+    
+    return(xgb_hp)
+
     
   } else if (as.character(model) == "lasso") {
     
-    lasso_best_param <- as.data.frame(sapply(1:10, function(i) {
+    lasso_best_param <- sapply(1:10, function(i) {
       
-      sapply(7:9, function(j) {
+      sapply(9:12, function(j) {
         
         lasso_param <- results[[i]][[j]][[1]][["best_params"]]
         
-        lasso_grep <- lasso_param[grep(".filter.frac|lambda", names(lasso_param))]
+        lasso_auc <- results[[i]][[j]][[1]][["outer_performance"]]
         
-        if (length(grep(".filter.frac", names(lasso_param))) == 0) {
+        #lasso_grep <- lasso_param[grep(".filter.frac|lambda", names(lasso_param))]
+        
+        if (length(grep(".filter.nfeat", names(lasso_param))) > 0) {
           
-          lasso_param_subset <- lasso_param[grep("lambda", names(lasso_param))]
-          lasso_param_subset[".filter.frac"] <- NA
+          lasso_param_subset <- lasso_param[grep("filter.nfeat|lambda", names(lasso_param))]
+          
+        } else if (length(grep(".filter.frac", names(lasso_param))) > 0){
+          
+          lasso_param_subset <- lasso_param[grep("filter.frac|lambda", names(lasso_param))]
           
         } else {
           
-          lasso_param_subset <- lasso_grep
+          lasso_param_subset <- lasso_param[grep("lambda", names(lasso_param))]
+          
+          lasso_param_subset["filter"] <- NA
+        
         }
         
-        return(lasso_param_subset)
+        lasso_param_df <- mutate(as.data.frame(lasso_param_subset), lasso_auc)
+        
+        return(lasso_param_df)
+  
       })
-    }))
-    return(lasso_best_param)
+      
+    })
+    
+    lasso_hp <- as.data.frame(lasso_best_param)
+    
+    rownames(lasso_hp) <- c("imp.filternfeat","imp.lambda","impfilter.auc",
+                            "pca.filterfrac","pca.lambda","pcafilter.auc",
+                         "auc.filterfrac","auc.lambda","aucfilter.auc",
+                         "lambda", "NA","nofilter.auc")
+    
+    colnames(lasso_hp) <- paste0("fold ", 1:10)
+    
+    return(lasso_hp)
     
   } else if (as.character(model) == "svm") {
     
-    svm_best_param <- as.data.frame(sapply(1:10, function(i) {
+    svm_best_param <- sapply(1:10, function(i) {
       
-      sapply(10:12, function(j) {
+      sapply(13:16, function(j) {
         
         svm_param <- results[[i]][[j]][[1]][["best_params"]]
         
-        svm_grep <- svm_param[grep(".filter.frac|.cost", names(svm_param))]
+        svm_auc <- results[[i]][[j]][[1]][["outer_performance"]]
         
-        if (length(grep(".filter.frac", names(svm_param))) == 0) {
+        if (length(grep(".filter.nfeat", names(svm_param))) > 0) {
           
-          svm_param_subset <- svm_param[grep(".cost", names(svm_param))]
+          svm_param_subset <- svm_param[grep("filter.nfeat|cost", names(svm_param))]
           
-          svm_param_subset[".filter.frac"] <- NA
+        } else if (length(grep(".filter.frac", names(svm_param))) > 0) {
+          
+          svm_param_subset <- svm_param[grep("filter.frac|cost", names(svm_param))]
           
         } else {
           
-          svm_param_subset <- svm_grep
+          svm_param_subset <- svm_param[grep("cost", names(svm_param))]
+          
+          svm_param_subset["filter"] <- NA
         }
         
-        return(svm_param_subset)
+        svm_param_df <- mutate(as.data.frame(svm_param_subset), svm_auc)
+        
+        return(svm_param_df)
+      
       })
-    }))
-    return(svm_best_param)
+      
+    })
+    
+    svm_hp <- as.data.frame(svm_best_param)
+    
+    rownames(svm_hp) <- c("imp.filternfeat", "imp.cost", "impfilter.auc",
+                          "pca.filterfrac","pca.cost","pcafilter.auc",
+                            "auc.filterfrac","auc.cost","aucfilter.auc",
+                            "cost","NA","nofilter.auc")
+    
+    colnames(svm_hp) <- paste0("fold ",1:10)
+    
+    return(svm_hp)
   }
 }
 
+make_one_test_fold <- function(data, fold){
+  
+  train_data = data[train_sets[[fold]], ]
+  test_data <- data[test_sets[[fold]], ]
+  
+  train_df_list <- extract_featuregroup_list(train_data)
+  test_df_list  <- extract_featuregroup_list(test_data)
+  
+  covars.train = model.matrix(~age+factor(sex)+factor(szrec1), data=train_data)
+  batch.train = train_data$batch
+  batch.test = test_data$batch 
+  
+  #apply combat function
+  combat.train <- do_neuroCombat(train_df_list, batch.train, covars.train)
+  
+  #get dat.combat and estimates
+  dat.combat.train.list <- lapply(combat.train, function(x) x$dat.combat)
+  
+  dat.combat.train <- get_dat_combated_df(dat.combat.train.list)
+  
+  #apply combat on test using the previously generated estimates
+  cb.train.estimates <- lapply(combat.train, function(x) x$estimates)
+  
+  dat.combat.test.list <- do_neuroCombatFromTraining(
+    test_df_list, batch.test, cb.train.estimates)
+  
+  dat.combat.test <- get_dat_combated_df(dat.combat.test.list)
+  
+  #extract clinical factor variables
+  t1.clin <- extract_clin_factors(train_data)
+  t1.clin.test <- extract_clin_factors(test_data)
+  
+  #combine combated df with clinical factors
+  t1.train.new <- data.frame(t1.clin, dat.combat.train)
+  t1.test.new <- data.frame(t1.clin.test, dat.combat.test)
+  
+  return(t1.test.new)
+}
 
-    #---------------------#
+    
     #---hyperparameters---#
-    #---------------------#
+
 
 create_param_sets <- function(glrn_id) {
   
   glrn_id = glrn$id
   
+  #nfeat <- outer_train_task$ncol
+  
+  #imp_randomforest  
+  if (grepl("imp.classif.ranger", glrn_id)) {
+    
+    #filt_features <- min(5, nfeat)
+    #max_mtry <- min(filt_features, nfeat)
+    
+    param_set <- ps(
+      imp.classif.ranger.classif.ranger.num.trees = p_int(50,250),
+      imp.classif.ranger.importance.filter.nfeat = p_int(5, 30),
+      #imp.classif.ranger.classif.ranger.mtry = p_int(10,25), #mtry cannot be larger than nfeat so cannot tune mtry?
+      imp.classif.ranger.classif.ranger.num.threads = p_int(4,4) #benji has 32 CPU and 2 threads per core
+    )
+
   #perm_randomforest  
-  if (grepl("perm.classif.ranger", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.num.trees"),
-                   lower = 50, upper = 250),
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.mtry"),
-                   lower = 10, upper = 25),
-      ParamDbl$new(paste0(glrn_id, ".permutation.filter.frac"), lower = 0.05, upper = 0.3)
-    ))
+  } else if (grepl("perm.classif.ranger", glrn_id)) {
+    param_set <- ps(
+      perm.classif.ranger.classif.ranger.num.trees = p_int(50,250),
+      perm.classif.ranger.classif.ranger.mtry = p_int(10,25),
+      perm.classif.ranger.permutation.filter.frac = p_dbl(0.05,0.3),
+      perm.classif.ranger.classif.ranger.num.threads = p_int(4,4) 
+    )
     
     #pca_randomforest  
   } else if (grepl("pca.classif.ranger", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.num.trees"),
-                   lower = 50, upper = 250),
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.mtry"),
-                   lower = 10, upper = 25),
-      ParamDbl$new(paste0(glrn_id, ".variance.filter.frac"), lower = 0.5, upper = 0.9)
-    ))
+    param_set <- ps(
+      pca.classif.ranger.classif.ranger.num.trees = p_int(50,250),
+      pca.classif.ranger.classif.ranger.mtry = p_int(10,25),
+      pca.classif.ranger.variance.filter.frac = p_dbl(0.5,0.9),
+      pca.classif.ranger.classif.ranger.num.threads = p_int(4,4)
+    )
     
     #auc_randomforest   
   } else if (grepl("auc_filter.classif.ranger", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.num.trees"),
-                   lower = 50, upper = 250),
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.mtry"),
-                   lower = 10, upper = 25),
-      ParamDbl$new(paste0(glrn_id, ".auc.filter.frac"), lower = 0.1, upper = 0.3)
-    ))
+    param_set <- ps(
+      auc_filter.classif.ranger.classif.ranger.num.trees = p_int(50,250),
+      auc_filter.classif.ranger.classif.ranger.mtry = p_int(10,25),
+      auc_filter.classif.ranger.auc.filter.frac = p_dbl(0.1,0.3),
+      auc_filter.classif.ranger.classif.ranger.num.threads = p_int(4,4)
+    )
     
     #nofilter_randomforest   
   } else if (grepl("no_filter.classif.ranger", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.num.trees"),
-                   lower = 50, upper = 250),
-      ParamInt$new(paste0(glrn_id, ".classif.ranger.mtry"),
-                   lower = 10, upper = 25)
-    ))
+    param_set <- ps(no_filter.classif.ranger.classif.ranger.num.trees = p_int(50,250),
+                    no_filter.classif.ranger.classif.ranger.mtry = p_int(10,25),
+                    no_filter.classif.ranger.classif.ranger.num.threads = p_int(4,4)
+    )
     
     #perm_xgb    
-  } else if (grepl("perm.classif.xgboost", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.nrounds"),
-                   lower = 50, upper = 250),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.eta"),
-                   lower = 1e-4, upper = 0.4),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.max_depth"),
-                   lower = 1, upper = 15),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.min_child_weight"),
-                   lower = 1, upper = 10),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.gamma"),
-                   lower = 1e-4, upper = 10),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.alpha"),
-                   lower = 1, upper = 1),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.subsample"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.colsample_bytree"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".permutation.filter.frac"), lower = 0.03, upper = 0.5)
-    ))
+  #} else if (grepl("perm.classif.xgboost", glrn_id)) {
+    
+    #param_set <- ps(
+      #perm.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
+      #perm.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
+      #perm.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
+      #perm.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
+      #perm.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
+      #perm.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
+      #perm.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
+      #perm.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5,0.8),
+      #perm.classif.xgboost.permutation.filter.frac = p_dbl(0.05,0.3),
+      #perm.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
+    #)
+    
+    
+    
+    #imp_xgb    
+  } else if (grepl("imp.classif.xgboost", glrn_id)) {
+    
+    param_set <- ps(
+      imp.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
+      imp.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
+      imp.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
+      imp.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
+      imp.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
+      imp.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
+      imp.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
+      imp.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8),
+      imp.classif.xgboost.importance.filter.nfeat = p_int(5, 25),
+      imp.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
+    )
     
     #pca_xgb    
   } else if (grepl("pca.classif.xgboost", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.nrounds"),
-                   lower = 50, upper = 250),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.eta"),
-                   lower = 1e-4, upper = 0.4),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.max_depth"),
-                   lower = 1, upper = 15),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.min_child_weight"),
-                   lower = 1, upper = 10),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.gamma"),
-                   lower = 1e-4, upper = 10),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.alpha"),
-                   lower = 1, upper = 1),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.subsample"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.colsample_bytree"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".variance.filter.frac"), lower = 0.5, upper = 0.9)
-    ))
+    param_set <- ps(
+      pca.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
+      pca.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
+      pca.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
+      pca.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
+      pca.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
+      pca.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
+      pca.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
+      pca.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8),
+      pca.classif.xgboost.variance.filter.frac = p_dbl(0.5, 0.9),
+      pca.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
+    )
     
     #auc_filter_xgb    
   } else if (grepl("auc_filter.classif.xgboost", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.nrounds"),
-                   lower = 50, upper = 250),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.eta"),
-                   lower = 1e-4, upper = 0.4),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.max_depth"),
-                   lower = 1, upper = 15),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.min_child_weight"),
-                   lower = 1, upper = 10),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.gamma"),
-                   lower = 1e-4, upper = 10),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.alpha"),
-                   lower = 1, upper = 1),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.subsample"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.colsample_bytree"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".auc.filter.frac"), lower = 0.1, upper = 0.3)
-    ))
+    
+    param_set <- ps(
+      auc_filter.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
+      auc_filter.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
+      auc_filter.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
+      auc_filter.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
+      auc_filter.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
+      auc_filter.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
+      auc_filter.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
+      auc_filter.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8),
+      auc_filter.classif.xgboost.auc.filter.frac = p_dbl(0.1, 0.3),
+      auc_filter.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
+    )
     
     #nofilter_xgb    
   } else if (grepl("no_filter.classif.xgboost", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.nrounds"),
-                   lower = 50, upper = 250),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.eta"),
-                   lower = 1e-4, upper = 0.4),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.max_depth"),
-                   lower = 1, upper = 15),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.min_child_weight"),
-                   lower = 1, upper = 10),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.gamma"),
-                   lower = 1e-4, upper = 10),
-      ParamInt$new(paste0(glrn_id, ".classif.xgboost.alpha"),
-                   lower = 1, upper = 1),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.subsample"), lower = 0.5, upper = 0.8),
-      ParamDbl$new(paste0(glrn_id, ".classif.xgboost.colsample_bytree"), lower = 0.5, upper = 0.8)
-    ))
+    
+    param_set <- ps(
+      no_filter.classif.xgboost.classif.xgboost.nrounds = p_int(50,250),
+      no_filter.classif.xgboost.classif.xgboost.eta = p_dbl(1e-4, 0.4),
+      no_filter.classif.xgboost.classif.xgboost.max_depth = p_int(1,15),
+      no_filter.classif.xgboost.classif.xgboost.min_child_weight = p_int(1,10),
+      no_filter.classif.xgboost.classif.xgboost.gamma = p_dbl(1e-4, 10),
+      no_filter.classif.xgboost.classif.xgboost.alpha = p_int(1,1),
+      no_filter.classif.xgboost.classif.xgboost.subsample = p_dbl(0.5,0.8),
+      no_filter.classif.xgboost.classif.xgboost.colsample_bytree = p_dbl(0.5, 0.8),
+      no_filter.classif.xgboost.classif.xgboost.nthread = p_int(4,4)
+    )
     
     #perm_glm
-  } else if (grepl("perm.classif.glmnet", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.glmnet.lambda"), lower = 0.001, upper = 0.20),
-      ParamDbl$new(paste0(glrn_id, ".permutation.filter.frac"), lower = 0.03, upper = 0.5)
-    ))
+  #} else if (grepl("perm.classif.glmnet", glrn_id)) {
+    
+    #param_set <- ps(
+      #perm.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001,0.20),
+      #perm.classif.glmnet.permutation.filter.frac = p_dbl(0.03,0.5)
+   # )
+    
+    #imp_glm     
+  } else if (grepl("imp.classif.glmnet", glrn_id)) {
+    
+    param_set <- ps(
+      imp.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001,0.20),
+      imp.classif.glmnet.importance.filter.nfeat = p_int(5,25)
+    )
     
     #pca_glm     
   } else if (grepl("pca.classif.glmnet", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.glmnet.lambda"), lower = 0.001, upper = 0.20),
-      ParamDbl$new(paste0(glrn_id, ".variance.filter.frac"), lower = 0.5, upper = 0.9)
-    ))
+    
+    param_set <- ps(
+      pca.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001,0.20),
+      pca.classif.glmnet.variance.filter.frac = p_dbl(0.5,0.9)
+    )
+    
     #auc_filter_glm     
   } else if (grepl("auc_filter.classif.glmnet", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.glmnet.lambda"), lower = 0.001, upper = 0.20),
-      ParamDbl$new(paste0(glrn_id, ".auc.filter.frac"), lower = 0.1, upper = 0.3)
-    ))
+    
+    param_set <- ps(
+      auc_filter.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001,0.20),
+      auc_filter.classif.glmnet.auc.filter.frac = p_dbl(0.1,0.3)
+    )
+    
     #no_filter_glm    
   } else if (grepl("no_filter.classif.glmnet", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.glmnet.lambda"), lower = 0.001, upper = 0.20)
-    ))
+    
+    param_set <- ps(
+      no_filter.classif.glmnet.classif.glmnet.lambda = p_dbl(0.001, 0.20)
+    )
     
     # perm_svm
-  } else if (grepl("perm.classif.svm", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.svm.cost"), lower = 2^-5, upper = 2^5),
-      ParamDbl$new(paste0(glrn_id, ".permutation.filter.frac"), lower = 0.03, upper = 0.5)
-    ))
+  #} else if (grepl("perm.classif.svm", glrn_id)) {
+    
+    #param_set <- ps(
+      #perm.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
+      #perm.classif.svm.permutation.filter.frac = p_dbl(0.03, 0.5)
+    #)
+    
+    #imp_svm    
+  } else if (grepl("imp.classif.svm", glrn_id)) {
+    
+    param_set <- ps(
+      imp.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
+      imp.classif.svm.importance.filter.nfeat = p_int(5, 25)
+    )
+    
     #pca_svm    
   } else if (grepl("pca.classif.svm", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.svm.cost"), lower = 2^-5, upper = 2^5),
-      ParamDbl$new(paste0(glrn_id, ".variance.filter.frac"), lower = 0.5, upper = 0.9)
-    ))
+    
+    param_set <- ps(
+      pca.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
+      pca.classif.svm.variance.filter.frac = p_dbl(0.5, 0.9)
+    )
+    
     #auc_filter_svm    
   } else if (grepl("auc_filter.classif.svm", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.svm.cost"), lower = 2^-5, upper = 2^5),
-      ParamDbl$new(paste0(glrn_id, ".auc.filter.frac"), lower = 0.1, upper = 0.3)
-    ))
+    
+    param_set <- ps(
+      auc_filter.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5),
+      auc_filter.classif.svm.auc.filter.frac = p_dbl(0.1, 0.3)
+    )
     
     #no_filter_svm    
   } else if (grepl("no_filter.classif.svm", glrn_id)) {
-    param_set <- ParamSet$new(list(
-      ParamDbl$new(paste0(glrn_id, ".classif.svm.cost"), lower = 2^-5, upper = 2^5)
-    ))
+    
+    param_set <- ps(
+      no_filter.classif.svm.classif.svm.cost = p_dbl(2^-5, 2^5)
+    )
     
   } 
 }  

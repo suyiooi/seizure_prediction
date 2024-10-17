@@ -5,7 +5,7 @@ author: "Suyi Ooi"
 date: "2024-09-30"
 output: html_document
 ---
-#libraries
+iml#libraries
 ```{r libraries, include=FALSE}
 #data
 library(data.table)
@@ -30,9 +30,11 @@ library(mlr3viz)
 library(precrec)
 library(mlr3measures)
 library(e1071)
+library(xgboost)
+library(ranger)
+library(glmnet)
 library(mlr3tuningspaces)
 library(genalg)
-library(xgboost)
 library(factoextra)
 library(FactoMineR)
 
@@ -49,7 +51,7 @@ library(future)
 library(future.apply)
 
 #functions and hyperparameters
-setwd("~/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/scripts/chap3")
+setwd("~/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/seizure_prediction/seizure_prediction")
 source("functions.R")
 
 ```
@@ -99,20 +101,19 @@ filter_methods <- list(
   "no_filter" = po("nop"))
 
 #factor preprocessing
-factor_pipeline = po("removeconstants") %>>%
+factor_pipeline = po("scale", "center") %>>% po("removeconstants") %>>%
   po("collapsefactors", no_collapse_above_prevalence = 0.01) %>>%
   po("encode", method = "one-hot",
      affect_columns = selector_cardinality_greater_than(2),
      id = "low_card_enc") %>>%
   po("encode", method = "treatment",
-     affect_columns = selector_type("factor"), id = "binary_enc") %>>% po("scale","center") 
-
+     affect_columns = selector_type("factor"), id = "binary_enc") 
 
 ```
 #task
 ```{r learner}
 #define the task
-task = TaskClassif$new(t1.dat, id = "szrec", target = "szrec1")
+task = TaskClassif$new(t1.dat, id = "szrec", target = "szrec1", positive = "yes")
 
 #learners
 learners <- list(lrn("classif.ranger",
@@ -216,7 +217,6 @@ for (i in seq_len(k)) {
   #make inner train task from outer train set
   inner_train_task = outer_train_task$clone()
   
-  
   graph_learners = list()
   
     for (learner in learners) {
@@ -234,7 +234,7 @@ for (i in seq_len(k)) {
                           list(GraphLearner$new(graph_learner)))
         }
     } #end learners 
-
+  
   #---inner loop: hyperparameter tuning for each graph learner---#
   
   results[[i]] <- list()
@@ -243,15 +243,17 @@ for (i in seq_len(k)) {
     
     #run inner loop in parallel
     
-    future::plan(multisession, workers = 4) #uses workers are specified
+    future::plan(multisession, workers = 8) #uses workers are specified
       
     glrn <- graph_learners[[j]]
     
     results[[i]][[j]] <- future_lapply(list(glrn), function(glrn){
   
       #fallback
-      glrn$encapsulate <- c(train = "evaluate", predict = "evaluate")
-      glrn$fallback = lrn("classif.log_reg", predict_type = "prob")
+      glrn$encapsulate(method = "evaluate", fallback = lrn("classif.log_reg", predict_type = "prob"))
+      
+      #glrn$encapsulate <- c(train = "evaluate", predict = "evaluate")
+      #glrn$fallback = lrn("classif.log_reg", predict_type = "prob")
     
       #hyperparameter set
       param_set <- create_param_sets(glrn$id)
@@ -360,10 +362,10 @@ inner_auc <- extract_auc(results, "inner")
 
 #top 4 models + clinical
 models <- list(
-  "pca.classif.ranger" = "pred_stack_rf",
+  "no_filter.classif.ranger" = "pred_stack_rf",
   "no_filter.classif.xgboost" = "pred_stack_xgb",
   "pca.classif.glmnet" = "pred_stack_glm",
-  "no_filter.classif.svm" = "pred_stack_svm"
+  "auc_filter.classif.svm" = "pred_stack_svm"
 )
 
 predictions <- stack_top4_predictions(results, models) 
@@ -387,41 +389,35 @@ plot_rocs(predictions)
 ```
 #model intepretation
 ```{r intepretation}
+#needs to revise as all results are in 'results' list
+
 #roc.test
-p<-roc.test(svm_stacked_roc, clin_stack_roc)
-p
+#p<-roc.test(svm_stacked_roc, clin_stack_roc)
+#p
 
 #PCA loadings
-pca_glm_model3 = final_models[[3]][["pca.classif.glmnet"]]
-pca_glm_filter = pca_glm_model3$graph_model$pipeops[[1]]$state$model
+#pca_glm_model3 = final_models[[3]][["pca.classif.glmnet"]]
+#pca_glm_filter = pca_glm_model3$graph_model$pipeops[[1]]$state$model
 
 # PC1:124
-glm_pca_loadings = as.data.frame(pca_glm_filter$pca$rotation[,1:126])
+#glm_pca_loadings = as.data.frame(pca_glm_filter$pca$rotation[,1:126])
 
 #shapley
-outer_test_data = as.data.table(outer_test_task$clone()$data())
+#outer_test_data = as.data.table(outer_test_task$clone()$data())
+outer_test_data = make_one_test_fold(t1.dat, 8)
 
-predictor_function = function(model, newdata) {
-  newdata = as.data.table(newdata)
-  prediction = model$predict_newdata(newdata)
-  prediction$prob
-}
+#filtered features
+#svm_features = results[[8]][[11]][[1]]$model$model$auc_filter.classif.svm$model$classif.svm$feature_names
+
+#data_svm_features <- outer_test_data[, svm_features, drop = FALSE]
+
 
 # predictor object
-auc_filter_svm_model3 <- final_models[[3]][["auc_filter.classif.svm"]]
-no_filter_svm_model3 <- final_models[[3]][["no_filter.classif.svm"]]
+auc_filter_svm_model <- results[[8]][[11]][[1]]$model
 
 svm_predictor = Predictor$new(
-  model = auc_filter_svm_model3,
-  data = outer_test_data[,-1, with = FALSE],  
-  y = outer_test_data[,1],
-  type = "prob",
-  class = "yes"
-)
-
-svm_predictor2 = Predictor$new(
-  model = no_filter_svm_model3,
-  data = outer_test_data[,-1, with = FALSE],  
+  model = auc_filter_svm_model,
+  data = outer_test_data[,-1],  
   y = outer_test_data[,1],
   type = "prob",
   class = "yes"
@@ -429,8 +425,10 @@ svm_predictor2 = Predictor$new(
 
 # 'average' shap for svm_predictor
 shapley_list_svm = list()
-for (i in 1:21) {
-  shapley_svm = Shapley$new(svm_predictor, x.interest = as.data.frame(outer_test_data[i, ]), sample.size = 5)
+for (i in 1:20) {
+  shapley_svm = Shapley$new(svm_predictor,
+                            x.interest = outer_test_data[i, -1],
+                            sample.size = 5)
   shapley_values_svm = as.data.frame(shapley_svm$results)
   shapley_values_svm$instance = i
   shapley_list_svm[[i]] = shapley_values_svm
@@ -438,26 +436,15 @@ for (i in 1:21) {
 
 shapley_all_svm = do.call(rbind, shapley_list_svm)
 
-# 'average' shap for svm_predictor2
-shapley_list_svm2 = list()
-for (i in 1:21) {
-  shapley_instance_svm2 = Shapley$new(svm_predictor2, x.interest = as.data.frame(outer_test_data[i, ]), sample.size = 5)
-  shapley_values_svm2 = as.data.frame(shapley_instance_svm2$results)
-  shapley_values_svm2$instance = i
-  shapley_list_svm2[[i]] = shapley_values_svm2
-}
+shapley_ordered = shapley_all_svm[order(-(shapley_all_svm$phi)), ]
+View(shapley_ordered)
 
-shapley_all_svm2 = do.call(rbind, shapley_list_svm2)
+top_5_image_features <- unique(shapley_ordered$feature)[1:5]
 
-#combined svm shaps
-shap_combined <- rbind(shapley_all_svm, shapley_all_svm2)
+#image table
+shapley_top_5_image <- shapley_ordered[shapley_ordered$feature %in% top_5_image_features, ]
 
-shapley_combined_values_svm = shap_combined[order(-(shap_combined$phi)), ]
-View(shapley_combined_values_svm)
-
-top_5_shapley_svm = shapley_combined_values_svm[c(1,4,7,8,9),]
-
-shapley_clin = shapley_combined_values_svm %>%
+shapley_clin = shapley_all_svm %>%
   filter(feature == "sex" | feature == "age" |
            feature == "mri" | feature == "nocturnal_sz" |
            feature == "risk_factors___1" |
@@ -466,23 +453,24 @@ shapley_clin = shapley_combined_values_svm %>%
            feature == "risk_factors___9"|
            feature == "sz_type" | feature == "eeg" | feature == "BrainPAD")
  
-shap_clin_top3 <- shapley_clin[c(1,2,15),]
+top_5_clin_features <- unique(shapley_clin$feature)[1:5]
 
-shapley_tib <- rbind(top_5_shapley_svm, shap_clin_top3)
+#clin table
+shapley_top_5_clin <- shapley_ordered[shapley_ordered$feature %in% top_5_clin_features, ]
 
-shapley_tib$feature <- c("grey matter volume asymmetry",
-              "LGI R temporal pole",
-              "folding index L superior frontal gyrus",
-              "LGI insula asymmetry",
-              "L CA1 hippocampal subfield volume",
-              "nocturnal first seizure",
-              "non-epileptiform EEG abnorm",
-              "generalised onset seizure")
+shapley_tib <- rbind(shapley_top_5_image, shapley_top_5_clin)
 
-shapley_tib$feature_type <- c("image","image","image","image","image",
-                  "clin","clin","clin")
+top_10_features <- unique(shapley_tib$feature)[1:10]
+top_10_features
 
-ggplot(shapley_tib, aes(x = reorder(feature, abs(phi)), y = phi, 
+shapley_top_10_df <- shapley_tib[!duplicated(shapley_tib$feature), ]
+
+
+#shapley_tib$feature <- c("grey matter volume asymmetry","LGI R temporal pole","folding index L superior frontal gyrus","LGI insula asymmetry","L CA1 hippocampal subfield volume","nocturnal first seizure","non-epileptiform EEG abnorm","generalised onset seizure")
+
+shapley_top_10_df$feature_type <- as.character(c(rep("image", 5), rep("clin", 5)))
+
+ggplot(shapley_top_10_df, aes(x = reorder(feature, abs(phi)), y = phi, 
                            fill = feature_type)) +
   geom_bar(stat = "identity", width = 0.5) +
   coord_flip() +
