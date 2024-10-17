@@ -363,7 +363,7 @@ extract_best_param <- function(results, model) {
     
     lasso_best_param <- sapply(1:10, function(i) {
       
-      sapply(8:11, function(j) {
+      sapply(9:12, function(j) {
         
         lasso_param <- results[[i]][[j]][[1]][["best_params"]]
         
@@ -410,13 +410,11 @@ extract_best_param <- function(results, model) {
     
     svm_best_param <- sapply(1:10, function(i) {
       
-      sapply(11:16, function(j) {
+      sapply(13:16, function(j) {
         
         svm_param <- results[[i]][[j]][[1]][["best_params"]]
         
         svm_auc <- results[[i]][[j]][[1]][["outer_performance"]]
-        
-        #svm_grep <- svm_param[grep(".filter.frac|.cost", names(svm_param))]
         
         if (length(grep(".filter.nfeat", names(svm_param))) > 0) {
           
@@ -426,8 +424,8 @@ extract_best_param <- function(results, model) {
           
           svm_param_subset <- svm_param[grep("filter.frac|cost", names(svm_param))]
           
-          
         } else {
+          
           svm_param_subset <- svm_param[grep("cost", names(svm_param))]
           
           svm_param_subset["filter"] <- NA
@@ -447,6 +445,7 @@ extract_best_param <- function(results, model) {
                           "pca.filterfrac","pca.cost","pcafilter.auc",
                             "auc.filterfrac","auc.cost","aucfilter.auc",
                             "cost","NA","nofilter.auc")
+    
     colnames(svm_hp) <- paste0("fold ",1:10)
     
     return(svm_hp)
