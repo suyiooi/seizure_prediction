@@ -2,7 +2,7 @@
 #Author: Suyi Ooi
 #Date: 19/09/2024
 
-#extract clinical factors
+# extract clinical factors 
 extract_clin_factors <- function(dat){
   clin <- subset(dat, select = c(szrec1,sex,age,mri,
                                  nocturnal_sz,
@@ -11,7 +11,7 @@ extract_clin_factors <- function(dat){
   return(clin)
 }
 
-#group features for combat
+# group features for combat
 extract_featuregroup_list <- function( dat ) {
   #make lists of train and test df
   df_list <- list()
@@ -709,3 +709,59 @@ create_param_sets <- function(glrn_id) {
   } 
 }  
 
+
+
+# process_each_learner
+process_each_learner <- function(glrn){   ### DV HERE ### (there is something funky going on with this inline function. Need to protect scope!)
+  
+  #fallback
+  glrn$encapsulate(method = "evaluate", fallback = lrn("classif.log_reg", predict_type = "prob")) #mlr3 v0.21.0 requires this but the fall-back keeps kicking in
+  
+  #glrn$encapsulate <- c(train = "evaluate", predict = "evaluate") #this works on mlr3 v0.20.0 without the fallback kicking in
+  #glrn$fallback = lrn("classif.log_reg", predict_type = "prob")
+  
+  #hyperparameter set
+  param_set <- create_param_sets(glrn$id)
+  
+  #tuning instance
+  instance <- TuningInstanceBatchSingleCrit$new(
+    task = inner_train_task,
+    learner = glrn,
+    resampling = inner_rsmp,
+    measure = measure,
+    search_space = param_set,
+    terminator = trm("evals", n_evals = 10) #increase for final run
+  )
+  
+  tuner$optimize(instance)
+  
+  #instance$result_learner_param_vals
+  #autoplot(instance)
+  
+  #assign tuned hyperparameters to learner
+  glrn$param_set$values = instance$result_learner_param_vals
+  
+  # -- Inner loop (hyperparameter) evaluation ------------------------------
+  rr_inner <- resample(inner_train_task, glrn,
+                       inner_rsmp,
+                       store_models = FALSE)
+  
+  inner_auc <- rr_inner$aggregate(measure)
+  
+  # -- Outer loop train/test evaluation ------------------------------------
+  
+  glrn$train(outer_train_task)
+  outer_prediction <- glrn$predict(outer_test_task)
+  outer_auc <- outer_prediction$score(measure)
+  
+  #store results for each glrn
+  list(
+    learner = glrn$id,
+    inner_performance = inner_auc,
+    outer_performance = outer_auc,
+    best_params = instance$result_learner_param_vals,
+    outer_prediction = outer_prediction,
+    model = glrn
+  )
+  
+} # end process_each_learner

@@ -1,7 +1,16 @@
-#to run on server
+# Seizure Recurrence Prediction
+# 
+# Author  : Suyi Ooi
+# Version : to run on server (Benji)
+# Date    : Nov 2024
 
-#libraries
-#data
+# --- Code Settings ------------------------------------------------------------
+
+# number of outer folds 
+NUM_OUTER_FOLDS <- 10
+
+    
+# --- Libraries & source functions ----------------------------------------------------------
 
 library(dplyr)
 library(ggplot2)
@@ -31,15 +40,15 @@ library(future)
 library(future.apply)
 
 #functions and hyperparameters
-setwd("/home/projects/suyi_structural_mri/seizure_prediction/")
+#setwd("/home/projects/suyi_structural_mri/seizure_prediction/")
 source("functions.R")
 
-#data
+
+# --- Data : load and clean ----------------------------------------------------
 
 #load t1 (clin and imaging), and brainPAD
-t1 <- read.csv("/home/projects/suyi_structural_mri/seizure_prediction/t1w.clin.image.scan.201.csv", header = TRUE)
-
-brainage <- read.csv("/home/projects/suyi_structural_mri/seizure_prediction/PyBrainAge_Output_suyi_20240709.csv", header = TRUE)
+t1 <- read.csv("t1w.clin.image.scan.201.csv", header = TRUE)
+brainage <- read.csv("PyBrainAge_Output_suyi_20240709.csv", header = TRUE)
 
 t1$X = NULL
 t1$sex[t1$sex == "nonbinary"] <- "male"
@@ -47,10 +56,10 @@ t1$sex[t1$sex == "nonbinary"] <- "male"
 brainage <- subset(brainage, select = c("BrainAge","BrainPAD"))
 
 #combine imaging and brainage
-t1.data = data.frame(t1,brainage)
+t1.data <- data.frame(t1,brainage)
 
 #remove bendigo skyra and one subject
-t1.dat = t1.data %>% filter(batch != "bendigo_skyra",
+t1.dat <- t1.data %>% filter(batch != "bendigo_skyra",
                             subject != "sub-eh0703")
 
 #make categorical variables factor
@@ -70,8 +79,9 @@ hat_range <- start_hat:end_hat
 colnames(t1.dat)[start_hat:end_hat] <- paste0("subcort_", colnames(t1.dat[start_hat:end_hat]))
 
 
-#filters
+# --- Set up MLR3 processes  ---------------------------------------------------
 
+#filters
 
 filter_methods <- list(
   "imp" = po("filter", filter = flt("importance"), filter.nfeat = 10),
@@ -130,18 +140,17 @@ clin_model <- list()
 outer_rsmp <- rsmp("custom")
 inner_rsmp = rsmp("cv", folds = 10)
 
-
-#nested CV
+# --- Run Nested Cross-Validation ----------------------------------------------
 
 #custom make 10 outer folds
-
 set.seed(4)
-k <- 10 
-folds <- stratified_folds(task, k)
+folds <- stratified_folds(task, NUM_OUTER_FOLDS)
 
 # outer fold
-
-for (i in seq_len(k)) {
+for (i in seq_along(folds)) {
+  
+  # Set up Train/Test for this Outer Fold ======================================
+  message("OUTER PROGRESS:  Running Outer Fold #",i," of ", NUM_OUTER_FOLDS)
   
   test_set <- folds[[i]]
   train_set <- setdiff(task$row_ids, test_set)
@@ -150,7 +159,7 @@ for (i in seq_len(k)) {
   train_sets[[i]] <- train_set #store these to check the shuffled indices
   test_sets[[i]] <- test_set
   
-  #apply combat on the training set
+  # Apply combat on the training set ===========================================
   train_data <- t1.dat[train_set, ]
   test_data <- t1.dat[test_set, ]
   
@@ -181,6 +190,7 @@ for (i in seq_len(k)) {
   
   dat.combat.test <- get_dat_combated_df(dat.combat.test.list)
   
+  # Set up data & learners for inner folds =====================================
   #extract clinical factor variables
   t1.clin <- extract_clin_factors(train_data)
   t1.clin.test <- extract_clin_factors(test_data)
@@ -214,72 +224,24 @@ for (i in seq_len(k)) {
     }
   } #end learners 
   
-  #---inner loop: hyperparameter tuning for each graph learner---#
+  # Learner loop: hyperparameter tuning for each graph learner ================
   
   results[[i]] <- list()
   
   for (j in seq_along(graph_learners)){
     
+    message("    LEARNER PROGRESS: running learner #",j," of ", length(graph_learners), " graph learners.")
+    
     #run inner loop in parallel
-    
     #future::plan("multisession", workers = 8) #uses workers are specified
-    
     future::plan("sequential") #perhaps this avoids the col_roles error
     
-    glrn <- graph_learners[[j]]
+    glrn <- graph_learners[[j]]   ### HERE ### something very funky ...
     
-    results[[i]][[j]] <- future_lapply(list(glrn), function(glrn){
-      
-      #fallback
-      glrn$encapsulate(method = "evaluate", fallback = lrn("classif.log_reg", predict_type = "prob")) #mlr3 v0.21.0 requires this but the fall-back keeps kicking in
-      
-      #glrn$encapsulate <- c(train = "evaluate", predict = "evaluate") #this works on mlr3 v0.20.0 without the fallback kicking in
-      #glrn$fallback = lrn("classif.log_reg", predict_type = "prob")
-      
-      #hyperparameter set
-      param_set <- create_param_sets(glrn$id)
-      
-      #tuning instance
-      instance <- TuningInstanceBatchSingleCrit$new(
-        task = inner_train_task,
-        learner = glrn,
-        resampling = inner_rsmp,
-        measure = measure,
-        search_space = param_set,
-        terminator = trm("evals", n_evals = 10) #increase for final run
-      )
-      
-      tuner$optimize(instance)
-      
-      #instance$result_learner_param_vals
-      #autoplot(instance)
-      
-      #assign tuned hyperparameters to learner
-      glrn$param_set$values = instance$result_learner_param_vals
-      
-      #inner loop evaluation
-      rr_inner <- resample(inner_train_task, glrn,
-                           inner_rsmp,
-                           store_models = FALSE)
-      
-      inner_auc <- rr_inner$aggregate(measure)
-      
-      #---Outer loop train/test evaluation---#
-      
-      glrn$train(outer_train_task)
-      outer_prediction <- glrn$predict(outer_test_task)
-      outer_auc <- outer_prediction$score(measure)
-      
-      #store results for each glrn
-      list(
-        learner = glrn$id,
-        inner_performance = inner_auc,
-        outer_performance = outer_auc,
-        best_params = instance$result_learner_param_vals,
-        outer_prediction = outer_prediction,
-        model = glrn
-      )
-    }, future.seed = TRUE)
+    results[[i]][[j]] <- future_lapply(list(glrn), process_each_learner, future.seed = TRUE)
+        # nb. the function process_each_learner is now in functions.R
+        # it implements the resampling/hyperparam tuning of the inner loop, 
+        #  and finally applys the learner (using optimal hyperparams) to this fold.
     
   } #end graph_learners 
   
@@ -331,10 +293,10 @@ for (i in seq_len(k)) {
   clin_pred[[i]] <- list(pred_clin)
   clin_model[[i]] <- clin_glm
   
+  
 } # end outer
 
-
-#save models
+# --- Save models --------------------------------------------------------------
 
 #saveRDS(results, file="results_111024.RData")
 #saveRDS(results, file = "/home/projects/suyi_structural_mri/seizure_prediction/results_161024.RData")
