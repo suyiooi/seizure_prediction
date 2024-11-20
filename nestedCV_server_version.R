@@ -6,14 +6,27 @@
 
 # --- Code Settings ------------------------------------------------------------
 
-# number of outer folds 
-NUM_OUTER_FOLDS <- 10
+  # outer for testing different algorithms-filter combos (learners)
+NUM_OUTER_FOLDS <- 3  # 10 # for real run
+ 
+ # inner for finding hyperparameters
+NUM_INNER_FOLDS <- 5  # 10 # for real run
 
+NUM_HYPERPARAM_LEVELS <- 20 # ?Do more for real. This controls the gridsearch, and is the number
+                            # of distinct levels tried for each hyperparameter
+
+NUM_HYPERPARAM_EVALS <- 20 # Do many more for real run. This controls the terminator. Total number of hyperparam sets
+                           # currently doesn't do anything, since using trm("none")
     
+CONST_RAND_SEED <- 4       # no variability between testing
+
+GRID_SEARCH_BATCH_SIZE <- 20  # number of parameter sets to run in parallel during gridsearch
+
 # --- Libraries & source functions ----------------------------------------------------------
 
 library(dplyr)
 library(ggplot2)
+library(patchwork)
 
 #ml/mlr3
 library(mlr3) #v0.21.0 is on Benji
@@ -31,6 +44,9 @@ library(xgboost)
 library(ranger)
 library(glmnet)
 library(mlr3tuningspaces)
+
+# for visualizations
+library(mlr3viz)  
 
 #harmonisation
 library(neuroCombat)
@@ -82,48 +98,62 @@ colnames(t1.dat)[start_hat:end_hat] <- paste0("subcort_", colnames(t1.dat[start_
 # --- Set up MLR3 processes  ---------------------------------------------------
 
 #filters
-
+  ### DV - consider making nfeat / filter.frac tunable hyperparameters
 filter_methods <- list(
+  "no_filter" = po("nop"), 
   "imp" = po("filter", filter = flt("importance"), filter.nfeat = 10),
   "pca" = po("pca") %>>% po("filter", filter = flt("variance"), filter.frac = 0.8),
+  "auc_filter" = po("filter", filter = flt("auc"), param_vals = list(filter.frac = 0.5))
+  
   #"perm" = po("filter", filter = flt("permutation"), param_vals = list(filter.frac = 0.3)),
-  "auc_filter" = po("filter", filter = flt("auc"), param_vals = list(filter.frac = 0.5)),
-  "no_filter" = po("nop"))
+  )
 
 #factor preprocessing
-factor_pipeline = po("scale","center") %>>% po("removeconstants") %>>%
-  po("encode", method = "one-hot",
-     affect_columns = selector_cardinality_greater_than(2),
-     id = "low_card_enc") %>>%
-  po("encode", method = "treatment",
-     affect_columns = selector_type("factor"), id = "binary_enc") 
+factor_pipeline = po("scale","center") %>>% 
+                  po("removeconstants") %>>%
+                  po("encode", method = "one-hot",
+                     affect_columns = selector_cardinality_greater_than(2),
+                     id = "low_card_enc") %>>%
+                  po("encode", method = "treatment",
+                     affect_columns = selector_type("factor"), id = "binary_enc") 
 
-#task
-
-#define the task
+#task - define the task
 task = TaskClassif$new(t1.dat, id = "szrec", target = "szrec1", positive = "yes")
 
 #learners
-learners <- list(lrn("classif.ranger",
+learners <- list( lrn("classif.svm",
+                      id = "classif.svm",
+                      type = "C-classification", kernel = "linear",  # DV- consider using RBF when nfeat < nobs
+                      predict_type = "prob"),
+                  
+                 lrn("classif.ranger",
                      id = "classif.ranger",
                      importance = "permutation",
                      predict_type = "prob"),
+                 
                  lrn("classif.xgboost",
                      id = "classif.xgboost",
                      predict_type = "prob"),
+                 
                  lrn("classif.glmnet",
                      id = "classif.glmnet",
-                     predict_type = "prob"),
-                 lrn("classif.svm",
-                     id = "classif.svm",
-                     type = "C-classification", kernel = "linear",
-                     predict_type = "prob"))
+                     predict_type = "prob")
+                 )
 
 # define measure
 measure = msr("classif.auc")
 
 #hyperparameter search strategy
-tuner = mlr3tuning::tnr("random_search", batch_size = 10) #change depending on cores
+#tuner = mlr3tuning::tnr("random_search", batch_size = 10) #change depending on cores
+# DV - suggest trying Bayesian optimizatino or annealing tuning algorithsm
+#    - a grid search would be robust but likely slow, esp when many hyperparams
+#    - consider Hyperband  optimizer
+
+# here is an attempt with a grid search
+tuner = mlr3tuning::tnr("grid_search",
+                        resolution = NUM_HYPERPARAM_LEVELS,  # number of values to try for each hyperparam
+                        batch_size = GRID_SEARCH_BATCH_SIZE  # number of levels to run in parallel
+                        ) 
 
 #store results
 train_sets <- list()
@@ -138,20 +168,19 @@ clin_model <- list()
 
 #rsmp strategy
 outer_rsmp <- rsmp("custom")
-inner_rsmp = rsmp("cv", folds = 10)
+inner_rsmp = rsmp("cv", folds = NUM_INNER_FOLDS)
 
 # --- Run Nested Cross-Validation ----------------------------------------------
 
 #custom make 10 outer folds
-set.seed(4)
+set.seed(CONST_RAND_SEED)
 folds <- stratified_folds(task, NUM_OUTER_FOLDS)
 
-# outer fold
+### Outer Folds loop ###
 for (i in seq_along(folds)) {
+  message("OUTER FOLD LOOP:  Running Fold #",i," of ", NUM_OUTER_FOLDS)
   
   # Set up Train/Test for this Outer Fold ======================================
-  message("OUTER PROGRESS:  Running Outer Fold #",i," of ", NUM_OUTER_FOLDS)
-  
   test_set <- folds[[i]]
   train_set <- setdiff(task$row_ids, test_set)
   outer_rsmp$instantiate(task, list(train_set), list(test_set))
@@ -190,7 +219,7 @@ for (i in seq_along(folds)) {
   
   dat.combat.test <- get_dat_combated_df(dat.combat.test.list)
   
-  # Set up data & learners for inner folds =====================================
+  # Set up data for inner folds ================================================
   #extract clinical factor variables
   t1.clin <- extract_clin_factors(train_data)
   t1.clin.test <- extract_clin_factors(test_data)
@@ -206,17 +235,17 @@ for (i in seq_along(folds)) {
   #make inner train task from outer train set
   inner_train_task = outer_train_task$clone()
   
-  graph_learners = list()
+  # Set up learners (with filters) for inner folds =============================
   
+  graph_learners = list()
   for (learner in learners) {
     
     #make graph learners with the filters piped
-    
     for (filter in names(filter_methods)) {
-      
       graph_name <- paste(filter, learner$clone()$id, sep = ".")
-      graph <- factor_pipeline %>>% filter_methods[[filter]] %>>%
-        learner$clone()
+      graph <- factor_pipeline %>>% 
+               filter_methods[[filter]] %>>%
+               learner$clone()
       graph_learner <- GraphLearner$new(graph)
       graph_learner$id <- graph_name
       graph_learners <- c(graph_learners,
@@ -224,26 +253,108 @@ for (i in seq_along(folds)) {
     }
   } #end learners 
   
-  # Learner loop: hyperparameter tuning for each graph learner ================
+  # Learner loop: train-test each algorithm on this fold ================
   
   results[[i]] <- list()
   
+    # DV - replace the below for loop with lapply (better for future_lapply switch, if needed)
+  #results[[i]] <- lapply(graph_learners, 
+  #                       process_each_learner, 
+  #                       num_hyperparam_evals = NUM_HYPERPARAM_EVALS )
+  
+  ### Learners loop (4 algorithms x 4 filter strategies)
   for (j in seq_along(graph_learners)){
     
-    message("    LEARNER PROGRESS: running learner #",j," of ", length(graph_learners), " graph learners.")
+    glrn <- graph_learners[[j]]  
+    message("    LEARNER LOOP: running learner #",j," of ", length(graph_learners), " <", glrn$id, ">, for outer fold #", i, ".")
     
     #run inner loop in parallel
     #future::plan("multisession", workers = 8) #uses workers are specified
-    future::plan("sequential") #perhaps this avoids the col_roles error
+    #future::plan("sequential") #perhaps this avoids the col_roles error
+    # DV - remove parallelization for testing. 
+    #      Consider replacing with parallelization of outer loop. 
     
-    glrn <- graph_learners[[j]]   ### HERE ### something very funky ...
     
-    results[[i]][[j]] <- future_lapply(list(glrn), process_each_learner, future.seed = TRUE)
-        # nb. the function process_each_learner is now in functions.R
-        # it implements the resampling/hyperparam tuning of the inner loop, 
-        #  and finally applys the learner (using optimal hyperparams) to this fold.
+  
+    # DV - remove parallelization for testing
+    # results[[i]][[j]] <- future_lapply(list(glrn), process_each_learner, future.seed = TRUE)
     
-  } #end graph_learners 
+    #fallback   # DV - don't encapsulate/no fallback for testing
+    #glrn$encapsulate(method = "evaluate", fallback = lrn("classif.log_reg", predict_type = "prob")) #mlr3 v0.21.0 requires this but the fall-back keeps kicking in
+    #glrn$encapsulate <- c(train = "evaluate", predict = "evaluate") #this works on mlr3 v0.20.0 without the fallback kicking in
+    #glrn$fallback = lrn("classif.log_reg", predict_type = "prob")
+    
+    #define hyperparameter space to explore
+    param_set <- create_param_sets(glrn)
+    
+    #tuning instance
+    instance <- TuningInstanceBatchSingleCrit$new(
+      task = inner_train_task,
+      learner = glrn,
+      resampling = inner_rsmp,
+      measure = measure,
+      search_space = param_set,
+        # grid search stops itself, so no terminator needed
+      terminator = trm("none")
+      
+      #terminator = trm("evals", n_evals = NUM_HYPERPARAM_EVALS ) 
+        # Option: use trm("combo") to combine termination after n_evals OR after an amount of time (eg 1 minute) ie trm("run_time")
+    )
+    
+    # run tuner to find optimized hyperparameters, 
+    #  using inner_rsmp folds (ie NUM_INNER_FOLDS )
+    tuner$optimize(instance)
+    # TO DO - check for stability of hyperparameters over instances
+    
+    #assign tuned hyperparameters to learner
+    glrn$param_set$values = instance$result_learner_param_vals
+    
+    #retrain inner using final aggregated param_set$values 
+    rr_inner <- resample(inner_train_task, glrn,
+                         inner_rsmp,
+                         store_models = FALSE)
+    inner_auc <- rr_inner$aggregate(measure)
+    
+    # -- Outer loop train/test evaluation ------------------------------------
+    
+    glrn$train(outer_train_task)
+    outer_prediction <- glrn$predict(outer_test_task)
+    outer_auc <- outer_prediction$score(measure)
+    
+    #store results for each glrn
+    results[[i]][[j]] <- list(
+      learner = glrn$id,
+      inner_performance = inner_auc,
+      outer_performance = outer_auc,
+      best_params = instance$result_learner_param_vals,
+      outer_prediction = outer_prediction,
+      model = glrn
+    )
+    
+    #REPORTING - display performance and parameters for each outerfold_x_learner-filter
+      # task parameters
+    
+      # visualize the task
+    p<-list()
+    p[[1]] <- autoplot(outer_train_task) + ggtitle("Outer Train Task")
+    p[[2]] <- autoplot(outer_test_task) + ggtitle("Outer Test Task")
+      # results of hyperparameter search
+    p[[3]] <- autoplot(instance) + ggtitle("Hyperparameter Search")   # this is a patchwork, not a ggplot
+        # performance on inner folds ROC
+    #p[30] <- autoplot(rr_inner, type="roc")
+        # perfomance on outer fold ROC
+    p[[4]] <- autoplot(outer_prediction, type="roc") + ggtitle("Outer Test Performance")
+    
+    class(as.data.table(results[[1]][[1]][c("inner_performance","outer_performance")]) |> gt() |> fmt_number(decimals=3))
+    
+    # display the summary
+    p[[1]] + p[[2]] + p[[4]] + plot_annotation( glrn$id )
+    #p[[3]] + plot_annotation( paste(   
+    
+    #DEBUG
+    stop("line #327")
+    
+  } #end loop over graph_learners 
   
   #---clinical model---#
   
@@ -269,12 +380,12 @@ for (i in seq_along(folds)) {
   instance_clin <- TuningInstanceBatchSingleCrit$new(
     task = clin_task,
     learner = clin_glm,
-    resampling = rsmp("cv", folds = 10),
+    resampling = rsmp("cv", folds = NUM_OUTER_FOLDS),
     measure = measure,
     terminator = trm("evals", n_evals = 10) # change this
   )
   
-  clin_rr <- resample(clin_task, clin_glm, rsmp("cv", folds = 10),
+  clin_rr <- resample(clin_task, clin_glm, rsmp("cv", folds = NUM_OUTER_FOLDS),
                       store_models = FALSE)
   clin_rr_train[[i]] <- clin_rr$aggregate(measure)
   
